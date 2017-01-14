@@ -17,6 +17,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "action.h"
+#include "fifo.h"
 #include "timespecop.h"
 #include "timecalc.h"
 #include <assert.h>
@@ -35,6 +36,7 @@
 #include <unistd.h>
 
 static int setup_signalfd();
+static void prepare_cleanup_fifo();
 static int execute_action(struct Action *action);
 static pid_t get_dead_child_pid(int sigfd);
 
@@ -43,14 +45,40 @@ struct Action test_actions[2] = {
     {{60, 0}, "i3lock -nc 000000", 0}
 };
 
-int main() {
+int main(int argc, char **argv) {
     openlog(NULL, LOG_PERROR, LOG_USER);
+
+    if(argc > 2) {
+        fprintf(stderr, "usage: %s [message]\n", argv[0]);
+        return 1;
+    }
+    if(argc == 2) {
+        int fd = open_fifo_write();
+        if(fd < 0) {
+            fprintf(stderr, "open_fifo_write: %s\n", strerror(errno));
+            fprintf(stderr, "Is jautolock daemon running?\n");
+            return 1;
+        }
+        if(write(fd, argv[1], strlen(argv[1]) + 1) < 0) {
+            fprintf(stderr, "write: %s\n", strerror(errno));
+            return 1;
+        }
+        close(fd);
+        return 0;
+    }
 
     int sigfd = setup_signalfd();
     if(sigfd < 0) {
         syslog(LOG_ERR, "setup_signalfd: %s", strerror(errno));
         return 1;
     }
+
+    int fifofd = open_fifo_read();
+    if(fifofd < 0) {
+        syslog(LOG_ERR, "open_fifo_read: %s", strerror(errno));
+        return 1;
+    }
+    prepare_cleanup_fifo();
 
     unsigned n_action = sizeof(test_actions) / sizeof(test_actions[0]);
     struct Action *actions = test_actions;
@@ -64,8 +92,12 @@ int main() {
         fd_set readfds;
         FD_ZERO(&readfds);
         FD_SET(sigfd, &readfds);
+        FD_SET(fifofd, &readfds);
+        int maxfd = sigfd;
+        if(maxfd < fifofd)
+            maxfd = fifofd;
 
-        if(pselect(sigfd + 1, &readfds, NULL, NULL, &timeout, NULL) < 0) {
+        if(pselect(maxfd + 1, &readfds, NULL, NULL, &timeout, NULL) < 0) {
             syslog(LOG_ERR, "pselect: %s", strerror(errno));
             return 1;
         }
@@ -78,6 +110,17 @@ int main() {
                         actions[i].pid = 0;
                 timecalc_next_offset(actions, n_action);
             }
+        }
+        if(FD_ISSET(fifofd, &readfds)) {
+            char buf[1024];
+            ssize_t sz = read(fifofd, buf, sizeof(buf) - 1);
+            if(sz < 0) {
+                syslog(LOG_ERR, "read: %s", strerror(errno));
+                sz = 0;
+            }
+            buf[sz] = '\0';
+            if(strcmp(buf, "exit") == 0)
+                break;
         }
 
         struct timespec tbegin, tend;
@@ -97,6 +140,22 @@ static int setup_signalfd() {
     sigaddset(&mask, SIGCHLD);
     sigprocmask(SIG_BLOCK, &mask, NULL);
     return signalfd(-1, &mask, SFD_CLOEXEC);
+}
+
+static void unlink_fifo_atexit_wrapper() {
+    unlink_fifo();
+}
+static void unlink_fifo_signal_wrapper(int sig) {
+    unlink_fifo();
+    signal(sig, SIG_DFL);
+    raise(sig);
+}
+static void prepare_cleanup_fifo() {
+    atexit(unlink_fifo_atexit_wrapper);
+    struct sigaction act = {0};
+    act.sa_handler = unlink_fifo_signal_wrapper;
+    sigaction(SIGINT, &act, NULL);
+    sigaction(SIGTERM, &act, NULL);
 }
 
 static pid_t get_dead_child_pid(int sigfd) {
