@@ -20,10 +20,8 @@
 #include "fifo.h"
 #include "timespecop.h"
 #include "timecalc.h"
-#include <assert.h>
 #include <errno.h>
 #include <stdbool.h>
-#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -121,6 +119,15 @@ int main(int argc, char **argv) {
             buf[sz] = '\0';
             if(strcmp(buf, "exit") == 0)
                 break;
+            if(strncmp(buf, "firenow ", 8) == 0 && buf[8] != '\0') {
+                char *endptr;
+                long x = strtol(buf + 8, &endptr, 0);
+                if(*endptr == '\0' && x >= 0 && x < n_action &&
+                        actions[x].pid == 0) {
+                    execute_action(actions + x);
+                    timecalc_firenow(actions[x].time);
+                }
+            }
         }
 
         struct timespec tbegin, tend;

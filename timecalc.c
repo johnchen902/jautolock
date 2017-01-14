@@ -82,6 +82,18 @@ void timecalc_check_range(struct timespec *begin, struct timespec *end) {
     last = cur;
 }
 
+void timecalc_firenow(struct timespec when) {
+    if(timespec_cmp(when, nextoffset) <= 0)
+        return;
+    struct timespec cur;
+    if(clock_gettime(CLOCK_MONOTONIC, &cur) < 0) {
+        syslog(LOG_ERR, "clock_gettime: %s", strerror(errno));
+        return;
+    }
+    offset = nextoffset = when;
+    act = last = cur;
+}
+
 static struct timespec get_idle_time() {
     Display *display = XOpenDisplay(NULL);
     if(!display) {

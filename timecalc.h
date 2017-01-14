@@ -24,4 +24,5 @@ void timecalc_reset();
 void timecalc_sleep(struct timespec *t, const struct Action *actions, unsigned n);
 void timecalc_next_offset(const struct Action *actions, unsigned n);
 void timecalc_check_range(struct timespec *begin, struct timespec *end);
+void timecalc_firenow(struct timespec what);
 #endif // TIMECALC_H
