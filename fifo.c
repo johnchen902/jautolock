@@ -16,8 +16,9 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "fifo.h"
 #define _GNU_SOURCE
+#include "fifo.h"
+#include "die.h"
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -34,29 +35,16 @@ static int filter(const struct dirent *entry);
 static char *fifo_path = NULL;
 
 int open_fifo_read() {
-    if(fifo_path) {
-        errno = EBUSY;
-        return -1;
-    }
+    if(fifo_path)
+        die("Only one fifo can exists\n");
     if(asprintf(&fifo_path,
-            "%s/jautolock-%d.fifo", getfifodir(), getpid()) < 0) {
-        fifo_path = NULL;
-        return -1;
-    }
-    if(mkfifo(fifo_path, 0600) < 0) {
-        int savederrno = errno;
-        free(fifo_path);
-        fifo_path = NULL;
-        errno = savederrno;
-        return -1;
-    }
+            "%s/jautolock-%d.fifo", getfifodir(), getpid()) < 0)
+        die("asprintf() failed\n");
+    if(mkfifo(fifo_path, 0600) < 0)
+        die("mkfifo() failed. Reason: %s\n", strerror(errno));
     int fd = open(fifo_path, O_RDWR);
-    if(fd < 0) {
-        int savederrno = errno;
-        unlink_fifo();
-        errno = savederrno;
-        return -1;
-    }
+    if(fd < 0)
+        die("open() failed. Reason: %s\n", strerror(errno));
     return fd;
 }
 int open_fifo_write() {
@@ -64,34 +52,30 @@ int open_fifo_write() {
     struct dirent **namelist;
     int n = scandir(dirp, &namelist, filter, alphasort);
     if(n < 0)
-        return -1;
-    if(n == 0) {
-        free(namelist);
-        errno = ENOENT;
-        return -1;
-    }
+        die("scandir() failed. Reason: %s\n", strerror(errno));
+    if(n == 0)
+        die("no suitable FIFO is found.\n");
 
-    int dirfd = open(dirp, O_RDONLY), fd = -1;
+    int dirfd = open(dirp, O_RDONLY), fd;
+    if(dirfd < 0)
+        die("open() failed. Reason: %s\n", strerror(errno));
     for(int i = 0; i < n; i++) {
         fd = openat(dirfd, namelist[i]->d_name, O_WRONLY | O_NONBLOCK);
         if(fd >= 0)
-            break;
+            goto found;
     }
+    die("no suitable FIFO is found.\n");
+found:
     close(dirfd);
     free(namelist);
-    if(fd < 0) {
-        errno = ENOENT;
-        return -1;
-    }
     return fd;
 }
-int unlink_fifo() {
+void unlink_fifo() {
     if(fifo_path) {
         unlink(fifo_path);
         free(fifo_path);
         fifo_path = NULL;
     }
-    return 0;
 }
 
 static const char *getfifodir() {

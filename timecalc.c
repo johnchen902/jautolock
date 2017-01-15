@@ -18,11 +18,11 @@
  */
 #include "timecalc.h"
 #include "action.h"
+#include "die.h"
 #include "timespecop.h"
 #include <X11/extensions/scrnsaver.h>
 #include <errno.h>
 #include <string.h>
-#include <syslog.h>
 #include <time.h>
 
 static struct timespec get_idle_time();
@@ -36,7 +36,7 @@ static struct timespec nextoffset; // TODO what is this
 
 void timecalc_reset() {
     if(clock_gettime(CLOCK_MONOTONIC, &last) < 0)
-        syslog(LOG_ERR, "clock_gettime: %s", strerror(errno));
+        die("clock_gettime() failed. Reason: %s\n", strerror(errno));
     act = last;
     offset.tv_sec = offset.tv_nsec = 0;
     nextoffset.tv_sec = nextoffset.tv_nsec = 0;
@@ -64,12 +64,8 @@ void timecalc_next_offset(const struct Action *actions, unsigned n) {
 
 void timecalc_check_range(struct timespec *begin, struct timespec *end) {
     struct timespec cur;
-    if(clock_gettime(CLOCK_MONOTONIC, &cur) < 0) {
-        syslog(LOG_ERR, "clock_gettime: %s", strerror(errno));
-        begin->tv_sec = begin->tv_nsec = 0;
-        end->tv_sec = end->tv_nsec = 0;
-        return;
-    }
+    if(clock_gettime(CLOCK_MONOTONIC, &cur) < 0)
+        die("clock_gettime() failed. Reason: %s\n", strerror(errno));
     struct timespec nextact = timespec_sub(cur, get_idle_time());
     if(timespec_cmp(timespec_sub(nextact, act), actdiff_threshold) > 0) {
         // new user activity
@@ -86,34 +82,25 @@ void timecalc_firenow(struct timespec when) {
     if(timespec_cmp(when, nextoffset) <= 0)
         return;
     struct timespec cur;
-    if(clock_gettime(CLOCK_MONOTONIC, &cur) < 0) {
-        syslog(LOG_ERR, "clock_gettime: %s", strerror(errno));
-        return;
-    }
+    if(clock_gettime(CLOCK_MONOTONIC, &cur) < 0)
+        die("clock_gettime() failed. Reason: %s\n", strerror(errno));
     offset = nextoffset = when;
     act = last = cur;
 }
 
 static struct timespec get_idle_time() {
     Display *display = XOpenDisplay(NULL);
-    if(!display) {
-        syslog(LOG_ERR, "XOpenDisplay failed\n");
-        struct timespec zero = {0, 0};
-        return zero;
-    }
+    if(!display)
+        die("Cannot open display.\n");
     XScreenSaverInfo *info = XScreenSaverAllocInfo();
     if(!info) {
-        syslog(LOG_ERR, "XScreenSaverAllocInfo failed\n");
         XCloseDisplay(display);
-        struct timespec zero = {0, 0};
-        return zero;
+        die("Cannot allocate XScreenSaverInfo.\n");
     }
     if(!XScreenSaverQueryInfo(display, XDefaultRootWindow(display), info)) {
-        syslog(LOG_ERR, "XScreenSaverQueryInfo failed\n");
         XFree(info);
         XCloseDisplay(display);
-        struct timespec zero = {0, 0};
-        return zero;
+        die("X screen saver extension not supported.\n");
     }
 
     struct timespec idle;
@@ -122,6 +109,5 @@ static struct timespec get_idle_time() {
 
     XFree(info);
     XCloseDisplay(display);
-
     return idle;
 }

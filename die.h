@@ -1,5 +1,5 @@
 /*
- * fifo.h - opens FIFO for jautolock
+ * die.h - print message and exit
  *
  * Copyright (C) 2017 Pochang Chen
  *
@@ -16,22 +16,17 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef FIFO_H
-#define FIFO_H
-/**
- * Make a new fifo and open it to read.
- * On success, returns the file descripter.
- * On failure, die.
- */
-int open_fifo_read();
-/**
- * Find an appropriate fifo to write to.
- * On success, returns the file descripter.
- * On failure, die.
- */
-int open_fifo_write();
-/**
- * Unlink the fifo created by open_fifo_read.
- */
-void unlink_fifo();
-#endif // FIFO_H
+#ifndef DIE_H
+#define DIE_H
+#include <stdio.h>
+#include <stdarg.h>
+#include <stdlib.h>
+_Noreturn static void die(const char *fmt, ...) {
+    va_list ap;
+    va_start(ap, fmt);
+    vfprintf(stderr, fmt, ap);
+    va_end(ap);
+
+    exit(EXIT_FAILURE);
+}
+#endif // DIE_H

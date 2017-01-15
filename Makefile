@@ -10,9 +10,9 @@ all : $(TARGET)
 $(TARGET) : $(OBJECTS)
 	$(CC) $(LDFLAGS) $(OBJECTS) -o $@
 
-jautolock.o : jautolock.c action.h fifo.h timecalc.h timespecop.h
-timecalc.o: timecalc.c timecalc.h action.h timespecop.h
-fifo.o: fifo.c fifo.h
+jautolock.o : jautolock.c action.h die.h fifo.h timecalc.h timespecop.h
+timecalc.o: timecalc.c timecalc.h die.h action.h timespecop.h
+fifo.o: fifo.c die.h fifo.h
 $(OBJECTS):
 	$(CC) $(CFLAGS) -c $< -o $@
 

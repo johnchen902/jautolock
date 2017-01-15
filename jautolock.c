@@ -17,6 +17,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "action.h"
+#include "die.h"
 #include "fifo.h"
 #include "timespecop.h"
 #include "timecalc.h"
@@ -29,13 +30,12 @@
 #include <sys/signalfd.h>
 #include <sys/types.h>
 #include <sys/wait.h>
-#include <syslog.h>
 #include <time.h>
 #include <unistd.h>
 
-static int setup_signalfd();
+static int mask_and_signalfd(int signum);
 static void prepare_cleanup_fifo();
-static int execute_action(struct Action *action);
+static void execute_action(struct Action *action);
 static pid_t get_dead_child_pid(int sigfd);
 
 struct Action test_actions[2] = {
@@ -44,38 +44,18 @@ struct Action test_actions[2] = {
 };
 
 int main(int argc, char **argv) {
-    openlog(NULL, LOG_PERROR, LOG_USER);
-
-    if(argc > 2) {
-        fprintf(stderr, "usage: %s [message]\n", argv[0]);
-        return 1;
-    }
+    if(argc > 2)
+        die("usage: %s [message]\n", argv[0]);
     if(argc == 2) {
         int fd = open_fifo_write();
-        if(fd < 0) {
-            fprintf(stderr, "open_fifo_write: %s\n", strerror(errno));
-            fprintf(stderr, "Is jautolock daemon running?\n");
-            return 1;
-        }
-        if(write(fd, argv[1], strlen(argv[1]) + 1) < 0) {
-            fprintf(stderr, "write: %s\n", strerror(errno));
-            return 1;
-        }
+        if(write(fd, argv[1], strlen(argv[1]) + 1) < 0)
+            die("write() failed. Reason: %s\n", strerror(errno));
         close(fd);
         return 0;
     }
 
-    int sigfd = setup_signalfd();
-    if(sigfd < 0) {
-        syslog(LOG_ERR, "setup_signalfd: %s", strerror(errno));
-        return 1;
-    }
-
+    int sigfd = mask_and_signalfd(SIGCHLD);
     int fifofd = open_fifo_read();
-    if(fifofd < 0) {
-        syslog(LOG_ERR, "open_fifo_read: %s", strerror(errno));
-        return 1;
-    }
     prepare_cleanup_fifo();
 
     unsigned n_action = sizeof(test_actions) / sizeof(test_actions[0]);
@@ -95,27 +75,22 @@ int main(int argc, char **argv) {
         if(maxfd < fifofd)
             maxfd = fifofd;
 
-        if(pselect(maxfd + 1, &readfds, NULL, NULL, &timeout, NULL) < 0) {
-            syslog(LOG_ERR, "pselect: %s", strerror(errno));
-            return 1;
-        }
+        if(pselect(maxfd + 1, &readfds, NULL, NULL, &timeout, NULL) < 0)
+            die("pselect() failed. Reason: %s\n", strerror(errno));
 
         if(FD_ISSET(sigfd, &readfds)) {
             int pid = get_dead_child_pid(sigfd);
-            if(pid >= 0) {
-                for(unsigned i = 0; i < n_action; i++)
-                    if(actions[i].pid == pid)
-                        actions[i].pid = 0;
-                timecalc_next_offset(actions, n_action);
-            }
+            for(unsigned i = 0; i < n_action; i++)
+                if(actions[i].pid == pid)
+                    actions[i].pid = 0;
+            timecalc_next_offset(actions, n_action);
         }
         if(FD_ISSET(fifofd, &readfds)) {
             char buf[1024];
             ssize_t sz = read(fifofd, buf, sizeof(buf) - 1);
-            if(sz < 0) {
-                syslog(LOG_ERR, "read: %s", strerror(errno));
-                sz = 0;
-            }
+            if(sz < 0)
+                die("read() failed. Reason: %s\n", strerror(errno));
+
             buf[sz] = '\0';
             if(strcmp(buf, "exit") == 0)
                 break;
@@ -141,12 +116,18 @@ int main(int argc, char **argv) {
     }
 }
 
-static int setup_signalfd() {
+static int mask_and_signalfd(int signum) {
     sigset_t mask;
-    sigemptyset(&mask);
-    sigaddset(&mask, SIGCHLD);
-    sigprocmask(SIG_BLOCK, &mask, NULL);
-    return signalfd(-1, &mask, SFD_CLOEXEC);
+    if(sigemptyset(&mask) < 0)
+        die("sigemptyset() failed. Reason: %s\n", strerror(errno));
+    if(sigaddset(&mask, signum) < 0)
+        die("sigaddset() failed. Reason: %s\n", strerror(errno));
+    if(sigprocmask(SIG_BLOCK, &mask, NULL) < 0)
+        die("sigprocmask() failed. Reason: %s\n", strerror(errno));
+    int fd = signalfd(-1, &mask, SFD_CLOEXEC);
+    if(fd < 0)
+        die("signalfd() failed. Reason: %s\n", strerror(errno));
+    return fd;
 }
 
 static void unlink_fifo_atexit_wrapper() {
@@ -167,40 +148,29 @@ static void prepare_cleanup_fifo() {
 
 static pid_t get_dead_child_pid(int sigfd) {
     struct signalfd_siginfo siginfo;
-    if(read(sigfd, &siginfo, sizeof(siginfo)) < 0) {
-        syslog(LOG_ERR, "read: %s", strerror(errno));
-        return -1;
-    }
-    if(siginfo.ssi_signo != SIGCHLD) {
-        syslog(LOG_WARNING, "Received signal %d. SIGCHLD expected",
-                (int) siginfo.ssi_signo);
-        return -1;
-    }
+    if(read(sigfd, &siginfo, sizeof(siginfo)) < 0)
+        die("read() failed. Reason: %s\n", strerror(errno));
+    if(siginfo.ssi_signo != SIGCHLD)
+        die("SIGCHLD expected, not %s\n", strsignal(siginfo.ssi_signo));
     pid_t pid = wait(NULL);
-    if(pid < 0) {
-        syslog(LOG_ERR, "wait: %s", strerror(errno));
-        return -1;
-    }
+    if(pid < 0)
+        die("wait() failed. Reason: %s\n", strerror(errno));
     return pid;
 }
 
-
-static int execute_action(struct Action *action) {
+static void execute_action(struct Action *action) {
     if(action->pid != 0) {
-        syslog(LOG_WARNING, "trying to execute running action");
-        return -1;
+        fprintf(stderr, "WARNING: attempted to fire a running action");
+        return;
     }
 
     int pid = fork();
     if(pid == 0) {
         execlp("sh", "sh", "-c", action->command, NULL);
-        _exit(1); // just in case
+        _exit(EXIT_FAILURE); // just in case
     }
-    if(pid < 0) {
-        syslog(LOG_ERR, "fork: %s", strerror(errno));
-        return -1;
-    }
+    if(pid < 0)
+        die("fork() failed. Reason: %s\n", strerror(errno));
     action->pid = pid;
-    return 0;
 }
 
