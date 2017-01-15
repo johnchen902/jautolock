@@ -1,5 +1,6 @@
 CFLAGS  += -std=gnu11 -Wall -Wextra -Wshadow -D_GNU_SOURCE
-LDFLAGS += -lX11 -lXss -lconfuse
+LDFLAGS +=
+LIBS    += -lX11 -lXss -lconfuse
 TARGET  = jautolock
 OBJECTS = jautolock.o timecalc.o fifo.o
 
@@ -7,7 +8,7 @@ OBJECTS = jautolock.o timecalc.o fifo.o
 all : $(TARGET)
 
 $(TARGET) : $(OBJECTS)
-	$(CC) $(LDFLAGS) $(OBJECTS) -o $@
+	$(CC) $(LDFLAGS) $(OBJECTS) -o $@ $(LIBS)
 
 -include $(OBJECTS:.o=.d)
 $(OBJECTS):
