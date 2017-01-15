@@ -1,3 +1,4 @@
 jautolock
 *.o
+*.d
 
