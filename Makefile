@@ -1,10 +1,9 @@
-CC      = gcc
-CFLAGS  = -std=gnu11 -O3 -Wall -Wextra -Wshadow -D_GNU_SOURCE
-LDFLAGS = -lX11 -lXss -lconfuse
+CFLAGS  += -std=gnu11 -Wall -Wextra -Wshadow -D_GNU_SOURCE
+LDFLAGS += -lX11 -lXss -lconfuse
 TARGET  = jautolock
 OBJECTS = jautolock.o timecalc.o fifo.o
 
-.PHONY : all clean
+.PHONY : all clean install
 all : $(TARGET)
 
 $(TARGET) : $(OBJECTS)
@@ -16,3 +15,7 @@ $(OBJECTS):
 
 clean :
 	$(RM) $(TARGET) *.o *.d
+
+install :
+	install -m 755 -d $(DESTDIR)/usr/bin
+	install -m 755 jautolock $(DESTDIR)/usr/bin/jautolock
