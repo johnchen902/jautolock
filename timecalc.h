@@ -18,8 +18,8 @@
  */
 #ifndef TIMECALC_H
 #define TIMECALC_H
-#include "action.h"
-#include <time.h>
+struct Action;
+struct timespec;
 void timecalc_reset();
 void timecalc_sleep(struct timespec *t, const struct Action *actions, unsigned n);
 void timecalc_next_offset(const struct Action *actions, unsigned n);

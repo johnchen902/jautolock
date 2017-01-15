@@ -19,7 +19,6 @@
 #ifndef ACTION_H
 #define ACTION_H
 #include <time.h>
-#include <unistd.h>
 struct Action {
     struct timespec time;
     const char *name;

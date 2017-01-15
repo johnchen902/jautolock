@@ -18,8 +18,8 @@
  */
 #ifndef DIE_H
 #define DIE_H
-#include <stdio.h>
 #include <stdarg.h>
+#include <stdio.h>
 #include <stdlib.h>
 _Noreturn static void die(const char *fmt, ...) {
     va_list ap;

@@ -17,13 +17,15 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "timecalc.h"
-#include "action.h"
-#include "die.h"
-#include "timespecop.h"
+#include <X11/Xlib.h>
 #include <X11/extensions/scrnsaver.h>
 #include <errno.h>
 #include <string.h>
+#include <sys/time.h>
 #include <time.h>
+#include "action.h"
+#include "die.h"
+#include "timespecop.h"
 
 static struct timespec get_idle_time();
 

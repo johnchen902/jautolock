@@ -16,15 +16,11 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "action.h"
-#include "die.h"
-#include "fifo.h"
-#include "timespecop.h"
-#include "timecalc.h"
 #include <confuse.h>
 #include <errno.h>
 #include <getopt.h>
 #include <glob.h>
+#include <signal.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -32,10 +28,14 @@
 #include <sys/select.h>
 #include <sys/signalfd.h>
 #include <sys/stat.h>
-#include <sys/types.h>
 #include <sys/wait.h>
 #include <time.h>
 #include <unistd.h>
+#include "action.h"
+#include "die.h"
+#include "fifo.h"
+#include "timecalc.h"
+#include "timespecop.h"
 
 static char *get_config_path();
 static int config_validate_time(cfg_t *cfg, cfg_opt_t *opt);
