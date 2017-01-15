@@ -1,6 +1,6 @@
 CC      = gcc
-CFLAGS  = -std=gnu11 -O3 -Wall -Wextra -Wshadow
-LDFLAGS = -lX11 -lXss
+CFLAGS  = -std=gnu11 -O3 -Wall -Wextra -Wshadow -D_GNU_SOURCE
+LDFLAGS = -lX11 -lXss -lconfuse
 TARGET  = jautolock
 OBJECTS = jautolock.o timecalc.o fifo.o
 

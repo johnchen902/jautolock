@@ -22,6 +22,7 @@
 #include <unistd.h>
 struct Action {
     struct timespec time;
+    const char *name;
     const char *command;
     pid_t pid;
 };
