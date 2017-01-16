@@ -29,65 +29,64 @@
 
 static struct timespec get_idle_time();
 
-static const struct timespec actdiff_threshold = {0, 10000000}; // 10ms
-static const struct timespec min_sleep_time    = {0, 10000000}; // 10ms
-static struct timespec act;    // last user activity time
-static struct timespec last;   // last time checked
-static struct timespec offset;     // TODO what is this
-static struct timespec nextoffset; // TODO what is this
+static const struct timespec activity_error = {0, 10000000}; // 10ms
+static const struct timespec min_sleep_time = {0, 10000000}; // 10ms
+// fire actions in range (last, current - offset]
+static struct timespec last, offset;
+// last user activity
+static struct timespec last_act;
 
-void timecalc_reset() {
-    if(clock_gettime(CLOCK_MONOTONIC, &last) < 0)
+void timecalc_init() {
+    last = (const struct timespec) {0, 0};
+    if(clock_gettime(CLOCK_MONOTONIC, &offset) < 0)
         die("clock_gettime() failed. Reason: %s\n", strerror(errno));
-    act = last;
-    offset.tv_sec = offset.tv_nsec = 0;
-    nextoffset.tv_sec = nextoffset.tv_nsec = 0;
+    last_act = offset;
 }
 
-void timecalc_sleep(struct timespec *timeout,
-        const struct Action *actions, unsigned n) {
-    timeout->tv_sec = 365 * 86400; // almost infinity
-    timeout->tv_nsec = 0;
-    for(unsigned i = 0; i < n; i++) {
-        struct timespec t1 =
-                timespec_sub(timespec_add(act, actions[i].time), offset);
-        timespec_minify_pos(timeout, t1, last);
-        timespec_minify_pos(timeout, actions[i].time, nextoffset);
-    }
-    timespec_maxify(timeout, min_sleep_time);
-}
+void timecalc_cycle(struct timespec *timeout,
+        struct Action *actions, unsigned n) {
+    struct timespec cur;
+    if(clock_gettime(CLOCK_MONOTONIC, &cur) < 0)
+        die("clock_gettime() failed. Reason: %s\n", strerror(errno));
 
-void timecalc_next_offset(const struct Action *actions, unsigned n) {
-    nextoffset.tv_sec = nextoffset.tv_nsec = 0;
+    struct timespec running = {0, 0};
     for(unsigned i = 0; i < n; i++)
         if(actions[i].pid)
-            timespec_maxify(&nextoffset, actions[i].time);
-}
+            timespec_maxify(&running, actions[i].time);
 
-void timecalc_check_range(struct timespec *begin, struct timespec *end) {
-    struct timespec cur;
-    if(clock_gettime(CLOCK_MONOTONIC, &cur) < 0)
-        die("clock_gettime() failed. Reason: %s\n", strerror(errno));
-    struct timespec nextact = timespec_sub(cur, get_idle_time());
-    if(timespec_cmp(timespec_sub(nextact, act), actdiff_threshold) > 0) {
-        // new user activity
-        act = nextact;
-        offset = nextoffset;
-        last = act;
+    struct timespec idle = get_idle_time();
+    struct timespec activity = timespec_sub(cur, idle);
+
+    if(timespec_cmp(last, running) < 0) {
+        // assume new user activity now
+        last = running;
+        offset = timespec_sub(cur, running);
+        activity = cur;
+    } else if(timespec_cmp(timespec_sub(activity, last_act), activity_error) > 0) {
+        // detected new user activity
+        last = running;
+        offset = timespec_sub(activity, running);
     }
-    *begin = timespec_add(timespec_sub(last, act), offset);
-    *end   = timespec_add(timespec_sub(cur,  act), offset);
-    last = cur;
-}
 
-void timecalc_firenow(struct timespec when) {
-    if(timespec_cmp(when, nextoffset) <= 0)
-        return;
-    struct timespec cur;
-    if(clock_gettime(CLOCK_MONOTONIC, &cur) < 0)
-        die("clock_gettime() failed. Reason: %s\n", strerror(errno));
-    offset = nextoffset = when;
-    act = last = cur;
+    last_act = activity;
+
+    struct timespec end = timespec_sub(cur, offset);
+    for(unsigned i = 0; i < n; i++)
+        if(timespec_cmp(last, actions[i].time) < 0 &&
+                timespec_cmp(actions[i].time, end) <= 0) {
+            execute_action(actions + i);
+            timespec_maxify(&running, actions[i].time);
+        }
+    last = end;
+
+    *timeout = (const struct timespec) {365 * 86400, 0};
+    for(unsigned i = 0; i < n; i++) {
+        if(timespec_cmp(actions[i].time, last) > 0)
+            timespec_minify(timeout, timespec_sub(actions[i].time, last));
+        if(timespec_cmp(actions[i].time, running) > 0)
+            timespec_minify(timeout, timespec_sub(actions[i].time, running));
+    }
+    timespec_maxify(timeout, min_sleep_time);
 }
 
 static struct timespec get_idle_time() {

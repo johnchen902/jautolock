@@ -1,5 +1,5 @@
 /*
- * timecalc.h - time related calculations for jautolock
+ * config.h - handles config file
  *
  * Copyright (C) 2017 Pochang Chen
  *
@@ -16,14 +16,10 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef TIMECALC_H
-#define TIMECALC_H
+#ifndef CONFIG_H
+#define CONFIG_H
 struct Action;
-struct timespec;
-void timecalc_init();
-/**
- * Fire actions that has timed out and determine time to sleep.
- */
-void timecalc_cycle(struct timespec *sleep_time,
-        struct Action *actions, unsigned n);
-#endif // TIMECALC_H
+void read_config(char *config_file);
+unsigned get_actions(struct Action **actions_ptr);
+void free_config();
+#endif // CONFIG_H

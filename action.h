@@ -1,5 +1,5 @@
 /*
- * action.h - defines the struct Action
+ * action.h - actions that may be fired by jautolock on inactivity
  *
  * Copyright (C) 2017 Pochang Chen
  *
@@ -25,4 +25,5 @@ struct Action {
     const char *command;
     pid_t pid;
 };
+void execute_action(struct Action *action);
 #endif // ACTION_H

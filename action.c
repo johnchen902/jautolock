@@ -1,5 +1,5 @@
 /*
- * timecalc.h - time related calculations for jautolock
+ * action.c - actions that may be fired by jautolock on inactivity
  *
  * Copyright (C) 2017 Pochang Chen
  *
@@ -16,14 +16,28 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef TIMECALC_H
-#define TIMECALC_H
-struct Action;
-struct timespec;
-void timecalc_init();
-/**
- * Fire actions that has timed out and determine time to sleep.
- */
-void timecalc_cycle(struct timespec *sleep_time,
-        struct Action *actions, unsigned n);
-#endif // TIMECALC_H
+#include "action.h"
+#include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+#include <unistd.h>
+#include "die.h"
+
+void execute_action(struct Action *action) {
+    if(action->pid != 0) {
+        fprintf(stderr, "WARNING: attempted to fire a running action");
+        return;
+    }
+
+    int pid = fork();
+    if(pid == 0) {
+        execlp("sh", "sh", "-c", action->command, NULL);
+        _exit(EXIT_FAILURE);
+    }
+    if(pid < 0)
+        die("fork() failed. Reason: %s\n", strerror(errno));
+    action->pid = pid;
+}
+
