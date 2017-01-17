@@ -28,10 +28,11 @@
 #include <sys/wait.h>
 #include <time.h>
 #include <unistd.h>
-#include "tasks.h"
 #include "config.h"
 #include "die.h"
 #include "fifo.h"
+#include "messages.h"
+#include "tasks.h"
 #include "timecalc.h"
 
 static char *concat_strings(char **list, int n);
@@ -128,15 +129,7 @@ int main(int argc, char **argv) {
             buf[sz] = '\0';
             if(strcmp(buf, "exit") == 0)
                 break;
-            if(strncmp(buf, "firenow ", 8) == 0) {
-                const char *name = buf + 8;
-                for(unsigned i = 0; i < n_task; i++) {
-                    if(strcmp(tasks[i].name, name) == 0 &&
-                            tasks[i].pid == 0) {
-                        execute_task(tasks + i);
-                    }
-                }
-            }
+            handle_messages(buf, tasks, n_task);
         }
     }
 
