@@ -20,6 +20,7 @@
 #include <X11/Xlib.h>
 #include <X11/extensions/scrnsaver.h>
 #include <errno.h>
+#include <stdbool.h>
 #include <string.h>
 #include <sys/time.h>
 #include <time.h>
@@ -29,18 +30,22 @@
 
 static struct timespec get_idle_time();
 
+static const struct timespec very_long_time = {31536000, 0}; // 1 year
 static const struct timespec activity_error = {0, 10000000}; // 10ms
 static const struct timespec min_sleep_time = {0, 10000000}; // 10ms
 // fire tasks in range (last, current - offset]
 static struct timespec last, offset;
 // last user activity
 static struct timespec last_act;
+// if busy, assume user is always active
+static bool busy;
 
 void timecalc_init() {
     last = (const struct timespec) {0, 0};
     if(clock_gettime(CLOCK_MONOTONIC, &offset) < 0)
         die("clock_gettime() failed. Reason: %s\n", strerror(errno));
     last_act = offset;
+    busy = false;
 }
 
 void timecalc_cycle(struct timespec *timeout,
@@ -55,6 +60,9 @@ void timecalc_cycle(struct timespec *timeout,
             timespec_maxify(&running, tasks[i].time);
 
     struct timespec idle = get_idle_time();
+    if(busy)
+        idle = (const struct timespec) {0, 0};
+
     struct timespec activity = timespec_sub(cur, idle);
 
     if(timespec_cmp(last, running) < 0) {
@@ -79,14 +87,23 @@ void timecalc_cycle(struct timespec *timeout,
         }
     last = end;
 
-    *timeout = (const struct timespec) {365 * 86400, 0};
-    for(unsigned i = 0; i < n; i++) {
-        if(timespec_cmp(tasks[i].time, last) > 0)
-            timespec_minify(timeout, timespec_sub(tasks[i].time, last));
-        if(timespec_cmp(tasks[i].time, running) > 0)
-            timespec_minify(timeout, timespec_sub(tasks[i].time, running));
+    *timeout = very_long_time;
+    if(!busy) {
+        for(unsigned i = 0; i < n; i++) {
+            if(timespec_cmp(tasks[i].time, last) > 0)
+                timespec_minify(timeout, timespec_sub(tasks[i].time, last));
+            if(timespec_cmp(tasks[i].time, running) > 0)
+                timespec_minify(timeout, timespec_sub(tasks[i].time, running));
+        }
+        timespec_maxify(timeout, min_sleep_time);
     }
-    timespec_maxify(timeout, min_sleep_time);
+}
+
+void timecalc_set_busy(bool b) {
+    busy = b;
+}
+bool timecalc_is_busy() {
+    return busy;
 }
 
 static struct timespec get_idle_time() {

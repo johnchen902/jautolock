@@ -26,4 +26,9 @@ void timecalc_init();
  */
 void timecalc_cycle(struct timespec *sleep_time,
         struct Task *tasks, unsigned n);
+/**
+ * If busy, assume user is always active.
+ */
+void timecalc_set_busy(_Bool busy);
+_Bool timecalc_is_busy();
 #endif // TIMECALC_H
