@@ -28,7 +28,7 @@
 #include <sys/wait.h>
 #include <time.h>
 #include <unistd.h>
-#include "action.h"
+#include "tasks.h"
 #include "config.h"
 #include "die.h"
 #include "fifo.h"
@@ -78,8 +78,8 @@ int main(int argc, char **argv) {
         return 0;
     }
 
-    struct Action *actions;
-    unsigned n_action = get_actions(&actions);
+    struct Task *tasks;
+    unsigned n_task = get_tasks(&tasks);
 
     int sigfd = mask_and_signalfd(SIGCHLD);
     int fifofd = open_fifo_read();
@@ -89,7 +89,7 @@ int main(int argc, char **argv) {
 
     while(true) {
         struct timespec timeout;
-        timecalc_cycle(&timeout, actions, n_action);
+        timecalc_cycle(&timeout, tasks, n_task);
 
         fd_set readfds;
         FD_ZERO(&readfds);
@@ -104,9 +104,9 @@ int main(int argc, char **argv) {
 
         if(FD_ISSET(sigfd, &readfds)) {
             int pid = get_dead_child_pid(sigfd);
-            for(unsigned i = 0; i < n_action; i++)
-                if(actions[i].pid == pid)
-                    actions[i].pid = 0;
+            for(unsigned i = 0; i < n_task; i++)
+                if(tasks[i].pid == pid)
+                    tasks[i].pid = 0;
         }
         if(FD_ISSET(fifofd, &readfds)) {
             char buf[1024];
@@ -119,17 +119,17 @@ int main(int argc, char **argv) {
                 break;
             if(strncmp(buf, "firenow ", 8) == 0) {
                 const char *name = buf + 8;
-                for(unsigned i = 0; i < n_action; i++) {
-                    if(strcmp(actions[i].name, name) == 0 &&
-                            actions[i].pid == 0) {
-                        execute_action(actions + i);
+                for(unsigned i = 0; i < n_task; i++) {
+                    if(strcmp(tasks[i].name, name) == 0 &&
+                            tasks[i].pid == 0) {
+                        execute_task(tasks + i);
                     }
                 }
             }
         }
     }
 
-    free(actions);
+    free(tasks);
     free_config();
 }
 

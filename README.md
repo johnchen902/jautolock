@@ -28,11 +28,11 @@ Put your config at ~/.config/jautolock/config
 
 Sample config:
 ```
-action notify {
+task notify {
     time = 50
     command = "notify-send jautolock \"10 seconds before locking\""
 }
-action lock {
+task lock {
     time = 60
     command = "i3lock -nc 000000"
 }

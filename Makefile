@@ -2,7 +2,7 @@ CFLAGS  += -std=gnu11 -Wall -Wextra -Wshadow -D_GNU_SOURCE
 LDFLAGS +=
 LIBS    += -lX11 -lXss -lconfuse
 TARGET  = jautolock
-OBJECTS = jautolock.o timecalc.o fifo.o config.o action.o
+OBJECTS = jautolock.o timecalc.o fifo.o config.o tasks.o
 
 .PHONY : all clean install
 all : $(TARGET)

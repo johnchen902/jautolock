@@ -1,5 +1,5 @@
 /*
- * action.h - actions that may be fired by jautolock on inactivity
+ * tasks.h - tasks that may be fired by jautolock on inactivity
  *
  * Copyright (C) 2017 Pochang Chen
  *
@@ -16,14 +16,14 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef ACTION_H
-#define ACTION_H
+#ifndef TASKS_H
+#define TASKS_H
 #include <time.h>
-struct Action {
+struct Task {
     struct timespec time;
     const char *name;
     const char *command;
     pid_t pid;
 };
-void execute_action(struct Action *action);
-#endif // ACTION_H
+void execute_task(struct Task *task);
+#endif // TASKS_H

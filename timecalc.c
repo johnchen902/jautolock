@@ -23,7 +23,7 @@
 #include <string.h>
 #include <sys/time.h>
 #include <time.h>
-#include "action.h"
+#include "tasks.h"
 #include "die.h"
 #include "timespecop.h"
 
@@ -31,7 +31,7 @@ static struct timespec get_idle_time();
 
 static const struct timespec activity_error = {0, 10000000}; // 10ms
 static const struct timespec min_sleep_time = {0, 10000000}; // 10ms
-// fire actions in range (last, current - offset]
+// fire tasks in range (last, current - offset]
 static struct timespec last, offset;
 // last user activity
 static struct timespec last_act;
@@ -44,15 +44,15 @@ void timecalc_init() {
 }
 
 void timecalc_cycle(struct timespec *timeout,
-        struct Action *actions, unsigned n) {
+        struct Task *tasks, unsigned n) {
     struct timespec cur;
     if(clock_gettime(CLOCK_MONOTONIC, &cur) < 0)
         die("clock_gettime() failed. Reason: %s\n", strerror(errno));
 
     struct timespec running = {0, 0};
     for(unsigned i = 0; i < n; i++)
-        if(actions[i].pid)
-            timespec_maxify(&running, actions[i].time);
+        if(tasks[i].pid)
+            timespec_maxify(&running, tasks[i].time);
 
     struct timespec idle = get_idle_time();
     struct timespec activity = timespec_sub(cur, idle);
@@ -72,19 +72,19 @@ void timecalc_cycle(struct timespec *timeout,
 
     struct timespec end = timespec_sub(cur, offset);
     for(unsigned i = 0; i < n; i++)
-        if(timespec_cmp(last, actions[i].time) < 0 &&
-                timespec_cmp(actions[i].time, end) <= 0) {
-            execute_action(actions + i);
-            timespec_maxify(&running, actions[i].time);
+        if(timespec_cmp(last, tasks[i].time) < 0 &&
+                timespec_cmp(tasks[i].time, end) <= 0) {
+            execute_task(tasks + i);
+            timespec_maxify(&running, tasks[i].time);
         }
     last = end;
 
     *timeout = (const struct timespec) {365 * 86400, 0};
     for(unsigned i = 0; i < n; i++) {
-        if(timespec_cmp(actions[i].time, last) > 0)
-            timespec_minify(timeout, timespec_sub(actions[i].time, last));
-        if(timespec_cmp(actions[i].time, running) > 0)
-            timespec_minify(timeout, timespec_sub(actions[i].time, running));
+        if(timespec_cmp(tasks[i].time, last) > 0)
+            timespec_minify(timeout, timespec_sub(tasks[i].time, last));
+        if(timespec_cmp(tasks[i].time, running) > 0)
+            timespec_minify(timeout, timespec_sub(tasks[i].time, running));
     }
     timespec_maxify(timeout, min_sleep_time);
 }

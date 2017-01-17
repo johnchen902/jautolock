@@ -1,5 +1,5 @@
 /*
- * action.c - actions that may be fired by jautolock on inactivity
+ * tasks.c - tasks that may be fired by jautolock on inactivity
  *
  * Copyright (C) 2017 Pochang Chen
  *
@@ -16,7 +16,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "action.h"
+#include "tasks.h"
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -25,19 +25,19 @@
 #include <unistd.h>
 #include "die.h"
 
-void execute_action(struct Action *action) {
-    if(action->pid != 0) {
-        fprintf(stderr, "WARNING: attempted to fire a running action");
+void execute_task(struct Task *task) {
+    if(task->pid != 0) {
+        fprintf(stderr, "WARNING: attempted to fire a running task");
         return;
     }
 
     int pid = fork();
     if(pid == 0) {
-        execlp("sh", "sh", "-c", action->command, NULL);
+        execlp("sh", "sh", "-c", task->command, NULL);
         _exit(EXIT_FAILURE);
     }
     if(pid < 0)
         die("fork() failed. Reason: %s\n", strerror(errno));
-    action->pid = pid;
+    task->pid = pid;
 }
 

@@ -26,20 +26,20 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <time.h>
-#include "action.h"
+#include "tasks.h"
 #include "die.h"
 
 static char *get_config_path();
 static int config_validate_time(cfg_t *cfg, cfg_opt_t *opt);
-static int config_validate_action(cfg_t *cfg, cfg_opt_t *opt);
+static int config_validate_task(cfg_t *cfg, cfg_opt_t *opt);
 
-static cfg_opt_t action_opts[] = {
+static cfg_opt_t task_opts[] = {
     CFG_INT("time", 600, CFGF_NONE),
     CFG_STR("command", NULL, CFGF_NODEFAULT),
     CFG_END()
 };
 static cfg_opt_t opts[] = {
-    CFG_SEC("action", action_opts, CFGF_MULTI | CFGF_TITLE),
+    CFG_SEC("task", task_opts, CFGF_MULTI | CFGF_TITLE),
     CFG_END()
 };
 
@@ -50,8 +50,8 @@ void read_config(char *config_file) {
         config_file = get_config_path();
 
     config = cfg_init(opts, CFGF_NONE);
-    cfg_set_validate_func(config, "action|time", config_validate_time);
-    cfg_set_validate_func(config, "action", config_validate_action);
+    cfg_set_validate_func(config, "task|time", config_validate_time);
+    cfg_set_validate_func(config, "task", config_validate_task);
     switch(cfg_parse(config, config_file)) {
     case CFG_FILE_ERROR:
         die("Failed to read config file.\n");
@@ -61,16 +61,16 @@ void read_config(char *config_file) {
     free(config_file);
 }
 
-unsigned get_actions(struct Action **actions_ptr) {
-    unsigned n_action = cfg_size(config, "action");
-    *actions_ptr = calloc(n_action, sizeof(struct Action));
-    for(unsigned i = 0; i < n_action; i++) {
-        cfg_t *action = cfg_getnsec(config, "action", i);
-        (*actions_ptr)[i].name = cfg_title(action);
-        (*actions_ptr)[i].time.tv_sec = cfg_getint(action, "time");
-        (*actions_ptr)[i].command = cfg_getstr(action, "command");
+unsigned get_tasks(struct Task **tasks_ptr) {
+    unsigned n = cfg_size(config, "task");
+    *tasks_ptr = calloc(n, sizeof(struct Task));
+    for(unsigned i = 0; i < n; i++) {
+        cfg_t *task = cfg_getnsec(config, "task", i);
+        (*tasks_ptr)[i].name = cfg_title(task);
+        (*tasks_ptr)[i].time.tv_sec = cfg_getint(task, "time");
+        (*tasks_ptr)[i].command = cfg_getstr(task, "command");
     }
-    return n_action;
+    return n;
 }
 
 void free_config() {
@@ -181,11 +181,11 @@ static int config_validate_time(cfg_t *cfg, cfg_opt_t *opt) {
     }
     return 0;
 }
-// validate the action section (command option required)
-static int config_validate_action(cfg_t *cfg, cfg_opt_t *opt) {
-    cfg_t *action = cfg_opt_getnsec(opt, cfg_opt_size(opt) - 1);
-    if (cfg_size(action, "command") == 0) {
-        cfg_error(cfg, "missing required option 'command' in action");
+// validate the task section (command option required)
+static int config_validate_task(cfg_t *cfg, cfg_opt_t *opt) {
+    cfg_t *task = cfg_opt_getnsec(opt, cfg_opt_size(opt) - 1);
+    if (cfg_size(task, "command") == 0) {
+        cfg_error(cfg, "missing required option 'command' in task");
         return -1;
     }
     return 0;

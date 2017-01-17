@@ -18,12 +18,12 @@
  */
 #ifndef TIMECALC_H
 #define TIMECALC_H
-struct Action;
+struct Task;
 struct timespec;
 void timecalc_init();
 /**
- * Fire actions that has timed out and determine time to sleep.
+ * Fire tasks that has timed out and determine time to sleep.
  */
 void timecalc_cycle(struct timespec *sleep_time,
-        struct Action *actions, unsigned n);
+        struct Task *tasks, unsigned n);
 #endif // TIMECALC_H

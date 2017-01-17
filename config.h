@@ -18,8 +18,8 @@
  */
 #ifndef CONFIG_H
 #define CONFIG_H
-struct Action;
+struct Task;
 void read_config(char *config_file);
-unsigned get_actions(struct Action **actions_ptr);
+unsigned get_tasks(struct Task **tasks_ptr);
 void free_config();
 #endif // CONFIG_H
