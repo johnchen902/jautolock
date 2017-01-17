@@ -16,6 +16,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include "jautolock.h"
 #include <errno.h>
 #include <getopt.h>
 #include <signal.h>
@@ -36,7 +37,7 @@
 
 static char *concat_strings(char **list, int n);
 static int mask_and_signalfd(int signum);
-static void prepare_cleanup_fifo();
+static void signal_handler(int sig);
 static pid_t get_dead_child_pid(int sigfd);
 
 static struct option long_options[] = {
@@ -44,6 +45,12 @@ static struct option long_options[] = {
     {"help", no_argument, 0, 'h'},
     {0, 0, 0, 0}
 };
+
+static sig_atomic_t exiting_main_loop = 0;
+
+void exit_main_loop() {
+    exiting_main_loop = -1;
+}
 
 int main(int argc, char **argv) {
     char *config_file = NULL;
@@ -82,12 +89,18 @@ int main(int argc, char **argv) {
     unsigned n_task = get_tasks(&tasks);
 
     int sigfd = mask_and_signalfd(SIGCHLD);
+
     int fifofd = open_fifo_read();
-    prepare_cleanup_fifo();
+    {
+        struct sigaction act = {0};
+        act.sa_handler = signal_handler;
+        sigaction(SIGINT, &act, NULL);
+        sigaction(SIGTERM, &act, NULL);
+    }
 
     timecalc_init();
 
-    while(true) {
+    while(!exiting_main_loop) {
         struct timespec timeout;
         timecalc_cycle(&timeout, tasks, n_task);
 
@@ -99,8 +112,11 @@ int main(int argc, char **argv) {
         if(maxfd < fifofd)
             maxfd = fifofd;
 
-        if(pselect(maxfd + 1, &readfds, NULL, NULL, &timeout, NULL) < 0)
+        if(pselect(maxfd + 1, &readfds, NULL, NULL, &timeout, NULL) < 0) {
+            if(exiting_main_loop)
+                break;
             die("pselect() failed. Reason: %s\n", strerror(errno));
+        }
 
         if(FD_ISSET(sigfd, &readfds)) {
             int pid = get_dead_child_pid(sigfd);
@@ -116,7 +132,7 @@ int main(int argc, char **argv) {
 
             buf[sz] = '\0';
             if(strcmp(buf, "exit") == 0)
-                break;
+                exit_main_loop();
             if(strncmp(buf, "firenow ", 8) == 0) {
                 const char *name = buf + 8;
                 for(unsigned i = 0; i < n_task; i++) {
@@ -129,8 +145,15 @@ int main(int argc, char **argv) {
         }
     }
 
+    unlink_fifo();
     free(tasks);
     free_config();
+
+    if(exiting_main_loop > 0) {
+        int sig = exiting_main_loop;
+        signal(sig, SIG_DFL);
+        raise(sig);
+    }
 }
 
 // concat list[0] to list[n - 1] together
@@ -163,20 +186,8 @@ static int mask_and_signalfd(int signum) {
     return fd;
 }
 
-static void unlink_fifo_atexit_wrapper() {
-    unlink_fifo();
-}
-static void unlink_fifo_signal_wrapper(int sig) {
-    unlink_fifo();
-    signal(sig, SIG_DFL);
-    raise(sig);
-}
-static void prepare_cleanup_fifo() {
-    atexit(unlink_fifo_atexit_wrapper);
-    struct sigaction act = {0};
-    act.sa_handler = unlink_fifo_signal_wrapper;
-    sigaction(SIGINT, &act, NULL);
-    sigaction(SIGTERM, &act, NULL);
+static void signal_handler(int sig) {
+    exiting_main_loop = sig;
 }
 
 static pid_t get_dead_child_pid(int sigfd) {
