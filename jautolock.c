@@ -16,7 +16,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "jautolock.h"
 #include <errno.h>
 #include <getopt.h>
 #include <signal.h>
@@ -46,11 +45,7 @@ static struct option long_options[] = {
     {0, 0, 0, 0}
 };
 
-static sig_atomic_t exiting_main_loop = 0;
-
-void exit_main_loop() {
-    exiting_main_loop = -1;
-}
+static sig_atomic_t exit_on_signal = 0;
 
 int main(int argc, char **argv) {
     char *config_file = NULL;
@@ -100,7 +95,7 @@ int main(int argc, char **argv) {
 
     timecalc_init();
 
-    while(!exiting_main_loop) {
+    while(!exit_on_signal) {
         struct timespec timeout;
         timecalc_cycle(&timeout, tasks, n_task);
 
@@ -113,7 +108,7 @@ int main(int argc, char **argv) {
             maxfd = fifofd;
 
         if(pselect(maxfd + 1, &readfds, NULL, NULL, &timeout, NULL) < 0) {
-            if(exiting_main_loop)
+            if(errno == EINTR && exit_on_signal)
                 break;
             die("pselect() failed. Reason: %s\n", strerror(errno));
         }
@@ -132,7 +127,7 @@ int main(int argc, char **argv) {
 
             buf[sz] = '\0';
             if(strcmp(buf, "exit") == 0)
-                exit_main_loop();
+                break;
             if(strncmp(buf, "firenow ", 8) == 0) {
                 const char *name = buf + 8;
                 for(unsigned i = 0; i < n_task; i++) {
@@ -149,8 +144,8 @@ int main(int argc, char **argv) {
     free(tasks);
     free_config();
 
-    if(exiting_main_loop > 0) {
-        int sig = exiting_main_loop;
+    if(exit_on_signal > 0) {
+        int sig = exit_on_signal;
         signal(sig, SIG_DFL);
         raise(sig);
     }
@@ -187,7 +182,7 @@ static int mask_and_signalfd(int signum) {
 }
 
 static void signal_handler(int sig) {
-    exiting_main_loop = sig;
+    exit_on_signal = sig;
 }
 
 static pid_t get_dead_child_pid(int sigfd) {
