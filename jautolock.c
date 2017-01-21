@@ -57,6 +57,8 @@ int main(int argc, char **argv) {
             break;
         switch(opt) {
         case 'c':
+            if(config_file)
+                die("multiple configuration file specified");
             config_file = strdup(optarg);
             if(!config_file)
                 die("strdup() failed. Reason: %s\n", strerror(errno));
@@ -67,8 +69,8 @@ int main(int argc, char **argv) {
             return 0;
         }
     }
-    // NOTE : read_config frees config_file
     read_config(config_file);
+    free(config_file);
 
     if(optind < argc) {
         char *s = concat_strings(argv + optind, argc - optind);
@@ -78,6 +80,7 @@ int main(int argc, char **argv) {
         close(fd);
         if(argc - optind >= 2)
             free(s);
+        free_config();
         return 0;
     }
 
@@ -162,6 +165,12 @@ static char *concat_strings(char **list, int n) {
     return s;
 }
 
+/**
+ * Mask the specified signal and open a file
+ * descripter to receive the signal.
+ *
+ * Return the file descripter.
+ */
 static int mask_and_signalfd(int signum) {
     sigset_t mask;
     if(sigemptyset(&mask) < 0)
@@ -176,10 +185,20 @@ static int mask_and_signalfd(int signum) {
     return fd;
 }
 
+/**
+ * Just the signal handler.
+ */
 static void signal_handler(int sig) {
     exit_on_signal = sig;
 }
 
+/**
+ * Read a signal from the specified file descripter.
+ * The signal read must be SIGCHLD.
+ *
+ * Then, wait() for a dead child.
+ * Return the pid of the child.
+ */
 static pid_t get_dead_child_pid(int sigfd) {
     struct signalfd_siginfo siginfo;
     if(read(sigfd, &siginfo, sizeof(siginfo)) < 0)

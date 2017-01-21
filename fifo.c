@@ -27,12 +27,12 @@
 #include <unistd.h>
 #include "die.h"
 
-static const char *getfifodir();
+static const char *getfifodir(void);
 static int filter(const struct dirent *entry);
 
 static char *fifo_path = NULL;
 
-int open_fifo_read() {
+int open_fifo_read(void) {
     if(fifo_path)
         die("Only one fifo can exists\n");
     if(asprintf(&fifo_path,
@@ -45,7 +45,7 @@ int open_fifo_read() {
         die("open() failed. Reason: %s\n", strerror(errno));
     return fd;
 }
-int open_fifo_write() {
+int open_fifo_write(void) {
     const char *dirp = getfifodir();
     struct dirent **namelist;
     int n = scandir(dirp, &namelist, filter, alphasort);
@@ -65,10 +65,12 @@ int open_fifo_write() {
     die("no suitable FIFO is found.\n");
 found:
     close(dirfd);
+    for(int i = 0; i < n; i++)
+        free(namelist[i]);
     free(namelist);
     return fd;
 }
-void unlink_fifo() {
+void unlink_fifo(void) {
     if(fifo_path) {
         unlink(fifo_path);
         free(fifo_path);
@@ -76,12 +78,20 @@ void unlink_fifo() {
     }
 }
 
-static const char *getfifodir() {
+/**
+ * Get the directory of the FIFO
+ * TODO add configuration for this
+ */
+static const char *getfifodir(void) {
     const char *xdg = getenv("XDG_RUNTIME_DIR");
     if(xdg)
         return xdg;
     return "/tmp";
 }
+
+/**
+ * Determines if the dirent may be a good FIFO to write to.
+ */
 static int filter(const struct dirent *entry) {
 #ifdef _DIRENT_HAVE_D_TYPE
     if(entry->d_type != DT_FIFO && entry->d_type != DT_UNKNOWN)

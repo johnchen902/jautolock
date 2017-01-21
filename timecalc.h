@@ -18,11 +18,24 @@
  */
 #ifndef TIMECALC_H
 #define TIMECALC_H
+/**
+ * Forward declarations. See "tasks.h" and <time.h> respectively.
+ */
 struct Task;
 struct timespec;
-void timecalc_init();
 /**
- * Fire tasks that has timed out and determine time to sleep.
+ * Call this before calling any other methods here.
+ */
+void timecalc_init(void);
+/**
+ * Fire tasks that have timed out and determine
+ * appropriate time to sleep so the next task
+ * will be run on time.
+ *
+ * The maximum sleep time is 365 days,
+ * and the mimimum is 10 milliseconds.
+ * TODO add configuration for this
+ * TODO somehow returns "infinity" sleep time
  */
 void timecalc_cycle(struct timespec *sleep_time,
         struct Task *tasks, unsigned n);
@@ -30,5 +43,5 @@ void timecalc_cycle(struct timespec *sleep_time,
  * If busy, assume user is always active.
  */
 void timecalc_set_busy(_Bool busy);
-_Bool timecalc_is_busy();
+_Bool timecalc_is_busy(void);
 #endif // TIMECALC_H

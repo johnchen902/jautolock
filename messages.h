@@ -18,6 +18,9 @@
  */
 #ifndef MESSAGES_H
 #define MESSAGES_H
+/**
+ * Forward declaration. See "tasks.h"
+ */
 struct Task;
 /**
  * Handle messages send by the users.

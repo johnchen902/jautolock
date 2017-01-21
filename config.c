@@ -29,7 +29,9 @@
 #include "tasks.h"
 #include "die.h"
 
-static char *get_config_path();
+static bool path_exists(const char *path);
+static char *resolve_tilde(const char *path);
+static char *get_config_path(void);
 static int config_validate_time(cfg_t *cfg, cfg_opt_t *opt);
 static int config_validate_task(cfg_t *cfg, cfg_opt_t *opt);
 
@@ -45,7 +47,10 @@ static cfg_opt_t opts[] = {
 
 static cfg_t *config;
 
-void read_config(char *config_file) {
+void read_config(const char *const_config_file) {
+    char *config_file = NULL;
+    if(const_config_file)
+        config_file = strdup(const_config_file);
     if(config_file == NULL)
         config_file = get_config_path();
 
@@ -85,16 +90,28 @@ unsigned get_tasks(struct Task **tasks_ptr) {
     return n;
 }
 
-void free_config() {
+void free_config(void) {
     cfg_free(config);
     config = NULL;
 }
 
-// Copied from i3status
+/**
+ * Checks if the given path exists.
+ *
+ * This method is copied from i3status.
+ */
 static bool path_exists(const char *path) {
     struct stat buf;
     return stat(path, &buf) == 0;
 }
+/**
+ * This function resolves ~ in pathnames.
+ * It may resolve wildcards in the first part of the path, but if no match
+ * or multiple matches are found, it just returns a copy of path as given.
+ *
+ * This method is copied from i3status, and I didn't bothered to
+ * find out how this code worked.
+ */
 static char *resolve_tilde(const char *path) {
     char *tail = strchr(path, '/');
     char *head = strndup(path, tail ? (size_t)(tail - path) : strlen(path));
@@ -122,9 +139,19 @@ static char *resolve_tilde(const char *path) {
 
     return result;
 }
+/**
+ * Get the default configuration path.
+ *
+ * It looks for these files (in this order):
+ * 1. $XDG_CONFIG_HOME/jautolock/config
+ * 2. ~/.jautolock.conf
+ * 3. $XDG_CONFIG_DIRS/jautolock/config
+ * 4. /etc/jautolock.conf
+ *
+ * This code is copied from i3status.
+ */
 static char *get_config_path(void) {
     {
-        // 1: check for $XDG_CONFIG_HOME/jautolock/config
         char *xdg_config_home = getenv("XDG_CONFIG_HOME");
         if(!xdg_config_home)
             xdg_config_home = "~/.config";
@@ -141,14 +168,12 @@ static char *get_config_path(void) {
     }
 
     {
-        // 2: check the traditional path under the home directory
         char *config_path = resolve_tilde("~/.jautolock.conf");
         if(path_exists(config_path))
             return config_path;
         free(config_path);
     }
 
-    // 3: check for $XDG_CONFIG_DIRS/jautolock/config
     char *xdg_config_dirs = getenv("XDG_CONFIG_DIRS");
     if(!xdg_config_dirs)
         xdg_config_dirs = "/etc/xdg";
@@ -169,7 +194,6 @@ static char *get_config_path(void) {
     }
     free(buf);
 
-    // 4: check the traditional path under /etc
     char *config_path = "/etc/jautolock.conf";
     if(path_exists(config_path)) {
         config_path = strdup(config_path);

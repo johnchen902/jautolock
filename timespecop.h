@@ -19,6 +19,9 @@
 #ifndef TIMESPECOP_H
 #define TIMESPECOP_H
 #include <time.h>
+/**
+ * Return 1 if lhs > rhs, 0 if lhs == rhs, or -1 if lhs < rds.
+ */
 __attribute__((unused)) static int timespec_cmp(struct timespec lhs,
         struct timespec rhs) {
     if(lhs.tv_sec < rhs.tv_sec)
@@ -31,6 +34,9 @@ __attribute__((unused)) static int timespec_cmp(struct timespec lhs,
         return 1;
     return 0;
 }
+/**
+ * Ruturns lhs + rhs.
+ */
 __attribute__((unused)) static struct timespec timespec_add(struct timespec lhs,
         struct timespec rhs) {
     lhs.tv_sec += rhs.tv_sec;
@@ -41,6 +47,9 @@ __attribute__((unused)) static struct timespec timespec_add(struct timespec lhs,
     }
     return lhs;
 }
+/**
+ * Ruturns lhs - rhs. Overflows if lhs < rhs.
+ */
 __attribute__((unused)) static struct timespec timespec_sub(struct timespec lhs,
         struct timespec rhs) {
     lhs.tv_sec -= rhs.tv_sec;
@@ -51,11 +60,17 @@ __attribute__((unused)) static struct timespec timespec_sub(struct timespec lhs,
     lhs.tv_nsec -= rhs.tv_nsec;
     return lhs;
 }
+/**
+ * *lhs = min(*lhs, rhs);
+ */
 __attribute__((unused)) static void timespec_minify(struct timespec *lhs,
         struct timespec rhs) {
     if(timespec_cmp(*lhs, rhs) > 0)
         *lhs = rhs;
 }
+/**
+ * *lhs = max(*lhs, rhs);
+ */
 __attribute__((unused)) static void timespec_maxify(struct timespec *lhs,
         struct timespec rhs) {
     if(timespec_cmp(*lhs, rhs) < 0)

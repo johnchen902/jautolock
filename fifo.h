@@ -23,15 +23,15 @@
  * On success, returns the file descripter.
  * On failure, die.
  */
-int open_fifo_read();
+int open_fifo_read(void);
 /**
  * Find an appropriate fifo to write to.
  * On success, returns the file descripter.
  * On failure, die.
  */
-int open_fifo_write();
+int open_fifo_write(void);
 /**
  * Unlink the fifo created by open_fifo_read.
  */
-void unlink_fifo();
+void unlink_fifo(void);
 #endif // FIFO_H

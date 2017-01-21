@@ -18,8 +18,28 @@
  */
 #ifndef CONFIG_H
 #define CONFIG_H
+/**
+ * Forward declaration. See task.h
+ */
 struct Task;
-void read_config(char *config_file);
+/**
+ * Read the configuration file specified.
+ * Search in default locations if config_file is NULL.
+ * Die if the config contains errors.
+ * Use empty config if the config file is not found.
+ */
+void read_config(const char *config_file);
+/**
+ * Get a list of tasks from previously read config.
+ * Returns the number of tasks.
+ * The list of tasks is put in *tasks_ptr,
+ * which should be free()-d when appropriate.
+ *
+ * It is undefined behavior to pass in NULL.
+ */
 unsigned get_tasks(struct Task **tasks_ptr);
-void free_config();
+/**
+ * Free up the config previously read by read_config().
+ */
+void free_config(void);
 #endif // CONFIG_H

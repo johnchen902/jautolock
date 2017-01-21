@@ -21,6 +21,9 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
+/**
+ * Print error message to stderr and exit(EXIT_FAILURE).
+ */
 _Noreturn static void die(const char *fmt, ...) {
     va_list ap;
     va_start(ap, fmt);

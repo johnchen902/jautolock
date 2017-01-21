@@ -19,11 +19,26 @@
 #ifndef TASKS_H
 #define TASKS_H
 #include <time.h>
+/**
+ * A tasks that may be fired by jautolock.
+ * time: inactivity time before this program is fired
+ * name: name of the task (used to fired it immediately)
+ * command: command to run
+ * pid: if zero, the task is not running
+ *      otherwise, the task is running, and has this pid
+ */
 struct Task {
     struct timespec time;
     const char *name;
     const char *command;
     pid_t pid;
 };
+/**
+ * Forks and execute the specified task.
+ *
+ * The task should not be running (i.e. task->pid should be 0).
+ * If this condition is not hold, the task will not be run
+ * and a warning will be printed.
+ */
 void execute_task(struct Task *task);
 #endif // TASKS_H

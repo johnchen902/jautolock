@@ -28,7 +28,7 @@
 #include "die.h"
 #include "timespecop.h"
 
-static struct timespec get_idle_time();
+static struct timespec get_idle_time(void);
 
 static const struct timespec very_long_time = {31536000, 0}; // 1 year
 static const struct timespec activity_error = {0, 10000000}; // 10ms
@@ -40,7 +40,7 @@ static struct timespec last_act;
 // if busy, assume user is always active
 static bool busy;
 
-void timecalc_init() {
+void timecalc_init(void) {
     last = (const struct timespec) {0, 0};
     if(clock_gettime(CLOCK_MONOTONIC, &offset) < 0)
         die("clock_gettime() failed. Reason: %s\n", strerror(errno));
@@ -102,11 +102,14 @@ void timecalc_cycle(struct timespec *timeout,
 void timecalc_set_busy(bool b) {
     busy = b;
 }
-bool timecalc_is_busy() {
+bool timecalc_is_busy(void) {
     return busy;
 }
 
-static struct timespec get_idle_time() {
+/**
+ * Get user idle time using the xscreensaver extension.
+ */
+static struct timespec get_idle_time(void) {
     Display *display = XOpenDisplay(NULL);
     if(!display)
         die("Cannot open display.\n");

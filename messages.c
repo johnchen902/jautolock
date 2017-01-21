@@ -47,12 +47,18 @@ void handle_messages(char *message, struct Task *tasks, unsigned n) {
             (actions[i].handler)(arg, tasks, n);
 }
 
+/**
+ * Execute the task specified in arg immediately.
+ */
 static void handle_now(char *arg, struct Task *tasks, unsigned n) {
     for(unsigned i = 0; i < n; i++)
         if(strcmp(tasks[i].name, arg) == 0 && tasks[i].pid == 0)
             execute_task(tasks + i);
 }
 
+/**
+ * See timecalc_set_busy.
+ */
 static void handle_busy(char *arg, struct Task *tasks, unsigned n) {
     (void) arg, (void) tasks, (void) n;
     timecalc_set_busy(true);
