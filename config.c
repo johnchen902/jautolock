@@ -52,11 +52,23 @@ void read_config(char *config_file) {
     config = cfg_init(opts, CFGF_NONE);
     cfg_set_validate_func(config, "task|time", config_validate_time);
     cfg_set_validate_func(config, "task", config_validate_task);
+
+    if(config_file == NULL) {
+        // get_config_path() already printed some error messages in this case
+        fputs("Using default configuration instead.\n",
+              stderr);
+        return;
+    }
+
     switch(cfg_parse(config, config_file)) {
     case CFG_FILE_ERROR:
-        die("Failed to read config file.\n");
+        fprintf(stderr,
+                "Failed to read \"%s\".\n"
+                "Using default configuration instead.\n",
+                config_file);
+        break;
     case CFG_PARSE_ERROR:
-        die("Failed to parse config file.\n");
+        die("Failed to parse configuration file.\n");
     }
     free(config_file);
 }
@@ -166,9 +178,10 @@ static char *get_config_path(void) {
         return config_path;
     }
 
-    die("Unable to find the configuration file (looked at "
-        "~/.jautolock.conf, $XDG_CONFIG_HOME/jautolock/config, "
-        "/etc/jautolock.conf and $XDG_CONFIG_DIRS/jautolock/config)");
+    fputs("Unable to find the configuration file (looked at "
+          "~/.jautolock.conf, $XDG_CONFIG_HOME/jautolock/config, "
+          "/etc/jautolock.conf and $XDG_CONFIG_DIRS/jautolock/config)\n",
+            stderr);
     return NULL;
 }
 

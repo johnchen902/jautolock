@@ -83,6 +83,8 @@ int main(int argc, char **argv) {
 
     struct Task *tasks;
     unsigned n_task = get_tasks(&tasks);
+    if(n_task == 0)
+        die("Error: No task specifed in configuration.\n");
 
     int sigfd = mask_and_signalfd(SIGCHLD);
 
