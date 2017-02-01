@@ -26,9 +26,13 @@
 #include <time.h>
 #include "tasks.h"
 #include "die.h"
-#include "timespecop.h"
 
 static struct timespec get_idle_time(void);
+static int timespec_cmp(struct timespec lhs, struct timespec rhs);
+static struct timespec timespec_add(struct timespec lhs, struct timespec rhs);
+static struct timespec timespec_sub(struct timespec lhs, struct timespec rhs);
+static void timespec_minify(struct timespec *lhs, struct timespec rhs);
+static void timespec_maxify(struct timespec *lhs, struct timespec rhs);
 
 static const struct timespec very_long_time = {31536000, 0}; // 1 year
 static const struct timespec activity_error = {0, 10000000}; // 10ms
@@ -132,3 +136,49 @@ static struct timespec get_idle_time(void) {
     XCloseDisplay(display);
     return idle;
 }
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-function"
+// lhs > rhs ? 1 : lhs < rhs ? -1 : 0
+static int timespec_cmp(struct timespec lhs, struct timespec rhs) {
+    if(lhs.tv_sec < rhs.tv_sec)
+        return -1;
+    if(lhs.tv_sec > rhs.tv_sec)
+        return 1;
+    if(lhs.tv_nsec < rhs.tv_nsec)
+        return -1;
+    if(lhs.tv_nsec > rhs.tv_nsec)
+        return 1;
+    return 0;
+}
+// lhs + rhs
+static struct timespec timespec_add(struct timespec lhs, struct timespec rhs) {
+    lhs.tv_sec += rhs.tv_sec;
+    lhs.tv_nsec += rhs.tv_nsec;
+    if(lhs.tv_nsec >= 1000000000) {
+        lhs.tv_nsec -= 1000000000;
+        lhs.tv_sec += 1;
+    }
+    return lhs;
+}
+// lhs - rhs
+static struct timespec timespec_sub(struct timespec lhs, struct timespec rhs) {
+    lhs.tv_sec -= rhs.tv_sec;
+    if(lhs.tv_nsec < rhs.tv_nsec) {
+        lhs.tv_nsec += 1000000000;
+        lhs.tv_sec -= 1;
+    }
+    lhs.tv_nsec -= rhs.tv_nsec;
+    return lhs;
+}
+// *lhs = min(*lhs, rhs)
+static void timespec_minify(struct timespec *lhs, struct timespec rhs) {
+    if(timespec_cmp(*lhs, rhs) > 0)
+        *lhs = rhs;
+}
+// *lhs = max(*lhs, rhs)
+static void timespec_maxify(struct timespec *lhs, struct timespec rhs) {
+    if(timespec_cmp(*lhs, rhs) < 0)
+        *lhs = rhs;
+}
+#pragma GCC diagnostic pop
