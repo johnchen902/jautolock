@@ -9,6 +9,7 @@ It is intended to replace xautolock.
 
 jautolock has the following dependencies:
   * confuse
+  * libxdg-basedir
   * libxss
 
 ## Upstream

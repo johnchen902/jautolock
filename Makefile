@@ -1,6 +1,7 @@
-CFLAGS  += -std=gnu11 -Wall -Wextra -Wshadow -D_GNU_SOURCE
+DEPENDS += x11 xscrnsaver libxdg-basedir libconfuse
+CFLAGS  += -std=gnu11 -Wall -Wextra -Wshadow -D_GNU_SOURCE $(shell pkg-config --cflags $(DEPENDS))
 LDFLAGS +=
-LIBS    += -lX11 -lXss -lconfuse
+LIBS    += $(shell pkg-config --libs $(DEPENDS))
 TARGET  = jautolock
 OBJECTS = jautolock.o timecalc.o fifo.o userconfig.o tasks.o messages.o
 
