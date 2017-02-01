@@ -18,28 +18,17 @@
  */
 #ifndef JAUTOLOCK_USERCONFIG_H
 #define JAUTOLOCK_USERCONFIG_H
-/**
- * Forward declaration. See task.h
- */
+#include <confuse.h>
 struct Task;
 /**
- * Read the configuration file specified.
- * Search in default locations if config_file is NULL.
- * Die if the config contains errors.
- * Use empty config if the config file is not found.
+ * Read the specfied configuration file.
+ * Search for one if config_file is NULL.
  */
-void read_config(const char *config_file);
+cfg_t *read_config(const char *config_file);
 /**
- * Get a list of tasks from previously read config.
+ * Get a list of tasks from config.
  * Returns the number of tasks.
- * The list of tasks is put in *tasks_ptr,
- * which should be free()-d when appropriate.
- *
- * It is undefined behavior to pass in NULL.
+ * The list of tasks is put in *tasks_ptr.
  */
-unsigned get_tasks(struct Task **tasks_ptr);
-/**
- * Free up the config previously read by read_config().
- */
-void free_config(void);
+unsigned get_tasks(cfg_t *config, struct Task **tasks_ptr);
 #endif // JAUTOLOCK_USERCONFIG_H

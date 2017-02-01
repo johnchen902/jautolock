@@ -16,6 +16,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include <confuse.h>
 #include <errno.h>
 #include <getopt.h>
 #include <signal.h>
@@ -69,7 +70,7 @@ int main(int argc, char **argv) {
             return 0;
         }
     }
-    read_config(config_file);
+    cfg_t *config = read_config(config_file);
     free(config_file);
 
     if(optind < argc) {
@@ -80,12 +81,12 @@ int main(int argc, char **argv) {
         close(fd);
         if(argc - optind >= 2)
             free(s);
-        free_config();
+        cfg_free(config);
         return 0;
     }
 
     struct Task *tasks;
-    unsigned n_task = get_tasks(&tasks);
+    unsigned n_task = get_tasks(config, &tasks);
     if(n_task == 0)
         die("Error: No task specifed in configuration.\n");
 
@@ -140,7 +141,7 @@ int main(int argc, char **argv) {
 
     unlink_fifo();
     free(tasks);
-    free_config();
+    cfg_free(config);
 
     if(exit_on_signal > 0) {
         int sig = exit_on_signal;

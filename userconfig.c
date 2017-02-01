@@ -44,10 +44,8 @@ static cfg_opt_t opts[] = {
     CFG_END()
 };
 
-static cfg_t *config;
-
-void read_config(const char *const_config_file) {
-    config = cfg_init(opts, CFGF_NONE);
+cfg_t *read_config(const char *const_config_file) {
+    cfg_t *config = cfg_init(opts, CFGF_NONE);
     cfg_set_validate_func(config, "task|time", config_validate_time);
     cfg_set_validate_func(config, "task", config_validate_task);
 
@@ -57,7 +55,7 @@ void read_config(const char *const_config_file) {
                 "No configuration file found.\n"
                 "Using default configuration instead.\n");
         free(config_file);
-        return;
+        return config;
     }
 
     switch(cfg_parse(config, config_file)) {
@@ -71,9 +69,10 @@ void read_config(const char *const_config_file) {
         die("Failed to parse configuration file.\n");
     }
     free(config_file);
+    return config;
 }
 
-unsigned get_tasks(struct Task **tasks_ptr) {
+unsigned get_tasks(cfg_t *config, struct Task **tasks_ptr) {
     unsigned n = cfg_size(config, "task");
     *tasks_ptr = calloc(n, sizeof(struct Task));
     for(unsigned i = 0; i < n; i++) {
@@ -83,11 +82,6 @@ unsigned get_tasks(struct Task **tasks_ptr) {
         (*tasks_ptr)[i].command = cfg_getstr(task, "command");
     }
     return n;
-}
-
-void free_config(void) {
-    cfg_free(config);
-    config = NULL;
 }
 
 // if const_config_path is not NULL, return a freeable copy
