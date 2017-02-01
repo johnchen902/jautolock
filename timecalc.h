@@ -16,8 +16,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef TIMECALC_H
-#define TIMECALC_H
+#ifndef JAUTOLOCK_TIMECALC_H
+#define JAUTOLOCK_TIMECALC_H
 /**
  * Forward declarations. See "tasks.h" and <time.h> respectively.
  */
@@ -44,4 +44,4 @@ void timecalc_cycle(struct timespec *sleep_time,
  */
 void timecalc_set_busy(_Bool busy);
 _Bool timecalc_is_busy(void);
-#endif // TIMECALC_H
+#endif // JAUTOLOCK_TIMECALC_H

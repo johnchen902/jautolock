@@ -16,8 +16,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef DIE_H
-#define DIE_H
+#ifndef JAUTOLOCK_DIE_H
+#define JAUTOLOCK_DIE_H
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -32,4 +32,4 @@ _Noreturn static void die(const char *fmt, ...) {
 
     exit(EXIT_FAILURE);
 }
-#endif // DIE_H
+#endif // JAUTOLOCK_DIE_H

@@ -16,8 +16,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef FIFO_H
-#define FIFO_H
+#ifndef JAUTOLOCK_FIFO_H
+#define JAUTOLOCK_FIFO_H
 /**
  * Make a new fifo and open it to read.
  * On success, returns the file descripter.
@@ -34,4 +34,4 @@ int open_fifo_write(void);
  * Unlink the fifo created by open_fifo_read.
  */
 void unlink_fifo(void);
-#endif // FIFO_H
+#endif // JAUTOLOCK_FIFO_H

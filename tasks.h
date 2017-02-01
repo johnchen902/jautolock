@@ -16,8 +16,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef TASKS_H
-#define TASKS_H
+#ifndef JAUTOLOCK_TASKS_H
+#define JAUTOLOCK_TASKS_H
 #include <time.h>
 /**
  * A tasks that may be fired by jautolock.
@@ -41,4 +41,4 @@ struct Task {
  * and a warning will be printed.
  */
 void execute_task(struct Task *task);
-#endif // TASKS_H
+#endif // JAUTOLOCK_TASKS_H

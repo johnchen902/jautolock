@@ -16,8 +16,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef MESSAGES_H
-#define MESSAGES_H
+#ifndef JAUTOLOCK_MESSAGES_H
+#define JAUTOLOCK_MESSAGES_H
 /**
  * Forward declaration. See "tasks.h"
  */
@@ -29,4 +29,4 @@ struct Task;
  * May modify message for its convenience but will not free it.
  */
 void handle_messages(char *message, struct Task *tasks, unsigned n);
-#endif // MESSAGES_H
+#endif // JAUTOLOCK_MESSAGES_H

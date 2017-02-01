@@ -16,8 +16,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef USERCONFIG_H
-#define USERCONFIG_H
+#ifndef JAUTOLOCK_USERCONFIG_H
+#define JAUTOLOCK_USERCONFIG_H
 /**
  * Forward declaration. See task.h
  */
@@ -42,4 +42,4 @@ unsigned get_tasks(struct Task **tasks_ptr);
  * Free up the config previously read by read_config().
  */
 void free_config(void);
-#endif // USERCONFIG_H
+#endif // JAUTOLOCK_USERCONFIG_H
