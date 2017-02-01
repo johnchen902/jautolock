@@ -16,6 +16,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include <confuse.h>
 #include <errno.h>
 #include <getopt.h>
 #include <signal.h>
@@ -68,20 +69,19 @@ int main(int argc, char **argv) {
             return 0;
         }
     }
-    read_config(config_file);
+    cfg_t *config = read_config(config_file);
     free(config_file);
 
     if(optind < argc) {
         char *s = concat_strings(argv + optind, argc - optind);
         // TODO implement
-        if(argc - optind >= 2)
-            free(s);
-        free_config();
+        free(s);
+        cfg_free(config);
         return 0;
     }
 
     struct Task *tasks;
-    unsigned n_task = get_tasks(&tasks);
+    unsigned n_task = get_tasks(config, &tasks);
     if(n_task == 0)
         die("Error: No task specifed in configuration.\n");
 
@@ -120,7 +120,7 @@ int main(int argc, char **argv) {
     }
 
     free(tasks);
-    free_config();
+    cfg_free(config);
 
     if(exit_on_signal > 0) {
         int sig = exit_on_signal;
@@ -131,15 +131,15 @@ int main(int argc, char **argv) {
 
 // concat list[0] to list[n - 1] together
 static char *concat_strings(char **list, int n) {
-    if(n == 1)
-        return *list;
-    char *s = *list;
+    if(n == 0)
+        return strdup("");
+
+    char *s = strdup(*list);
     for(int i = 1; i < n; i++) {
         char *t;
         if(asprintf(&t, "%s %s", s, list[i]) < 0)
             die("asprintf() failed.");
-        if(i > 1)
-            free(s);
+        free(s);
         s = t;
     }
     return s;
