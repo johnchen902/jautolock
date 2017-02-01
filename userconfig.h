@@ -1,5 +1,5 @@
 /*
- * config.h - handles config file
+ * userconfig.h - find, read and parse user configuration file
  *
  * Copyright (C) 2017 Pochang Chen
  *
@@ -16,8 +16,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef CONFIG_H
-#define CONFIG_H
+#ifndef USERCONFIG_H
+#define USERCONFIG_H
 /**
  * Forward declaration. See task.h
  */
@@ -42,4 +42,4 @@ unsigned get_tasks(struct Task **tasks_ptr);
  * Free up the config previously read by read_config().
  */
 void free_config(void);
-#endif // CONFIG_H
+#endif // USERCONFIG_H

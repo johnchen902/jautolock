@@ -28,12 +28,12 @@
 #include <sys/wait.h>
 #include <time.h>
 #include <unistd.h>
-#include "config.h"
 #include "die.h"
 #include "fifo.h"
 #include "messages.h"
 #include "tasks.h"
 #include "timecalc.h"
+#include "userconfig.h"
 
 static char *concat_strings(char **list, int n);
 static int mask_and_signalfd(int signum);
