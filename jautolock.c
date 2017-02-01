@@ -29,7 +29,6 @@
 #include <time.h>
 #include <unistd.h>
 #include "die.h"
-#include "fifo.h"
 #include "messages.h"
 #include "tasks.h"
 #include "timecalc.h"
@@ -74,10 +73,7 @@ int main(int argc, char **argv) {
 
     if(optind < argc) {
         char *s = concat_strings(argv + optind, argc - optind);
-        int fd = open_fifo_write();
-        if(write(fd, s, strlen(s) + 1) < 0)
-            die("write() failed. Reason: %s\n", strerror(errno));
-        close(fd);
+        // TODO implement
         if(argc - optind >= 2)
             free(s);
         free_config();
@@ -91,7 +87,6 @@ int main(int argc, char **argv) {
 
     int sigfd = mask_and_signalfd(SIGCHLD);
 
-    int fifofd = open_fifo_read();
     {
         struct sigaction act = {0};
         act.sa_handler = signal_handler;
@@ -108,10 +103,7 @@ int main(int argc, char **argv) {
         fd_set readfds;
         FD_ZERO(&readfds);
         FD_SET(sigfd, &readfds);
-        FD_SET(fifofd, &readfds);
         int maxfd = sigfd;
-        if(maxfd < fifofd)
-            maxfd = fifofd;
 
         if(pselect(maxfd + 1, &readfds, NULL, NULL, &timeout, NULL) < 0) {
             if(errno == EINTR && exit_on_signal)
@@ -125,20 +117,8 @@ int main(int argc, char **argv) {
                 if(tasks[i].pid == pid)
                     tasks[i].pid = 0;
         }
-        if(FD_ISSET(fifofd, &readfds)) {
-            char buf[1024];
-            ssize_t sz = read(fifofd, buf, sizeof(buf) - 1);
-            if(sz < 0)
-                die("read() failed. Reason: %s\n", strerror(errno));
-
-            buf[sz] = '\0';
-            if(strcmp(buf, "exit") == 0)
-                break;
-            handle_messages(buf, tasks, n_task);
-        }
     }
 
-    unlink_fifo();
     free(tasks);
     free_config();
 

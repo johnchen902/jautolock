@@ -3,7 +3,7 @@ CFLAGS  += -std=gnu11 -Wall -Wextra -Wshadow -D_GNU_SOURCE $(shell pkg-config --
 LDFLAGS +=
 LIBS    += $(shell pkg-config --libs $(DEPENDS))
 TARGET  = jautolock
-OBJECTS = jautolock.o timecalc.o fifo.o userconfig.o tasks.o messages.o
+OBJECTS = jautolock.o timecalc.o userconfig.o tasks.o messages.o
 
 .PHONY : all clean install
 all : $(TARGET)
