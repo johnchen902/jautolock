@@ -79,8 +79,7 @@ int main(int argc, char **argv) {
         if(write(fd, s, strlen(s) + 1) < 0)
             die("write() failed. Reason: %s\n", strerror(errno));
         close(fd);
-        if(argc - optind >= 2)
-            free(s);
+        free(s);
         cfg_free(config);
         return 0;
     }
@@ -152,15 +151,15 @@ int main(int argc, char **argv) {
 
 // concat list[0] to list[n - 1] together
 static char *concat_strings(char **list, int n) {
-    if(n == 1)
-        return *list;
-    char *s = *list;
+    if(n == 0)
+        return strdup("");
+
+    char *s = strdup(*list);
     for(int i = 1; i < n; i++) {
         char *t;
         if(asprintf(&t, "%s %s", s, list[i]) < 0)
             die("asprintf() failed.");
-        if(i > 1)
-            free(s);
+        free(s);
         s = t;
     }
     return s;
