@@ -25,7 +25,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/select.h>
+#include <sys/socket.h>
 #include <sys/signalfd.h>
+#include <sys/un.h>
 #include <sys/wait.h>
 #include <time.h>
 #include <unistd.h>
@@ -35,7 +37,9 @@
 #include "timecalc.h"
 #include "userconfig.h"
 
-static char *concat_strings(char **list, int n);
+static char *get_socket_path(void);
+static char *intersperse(char **list, int n);
+static char *send_message(const char *msg, const char *socket_path);
 static int mask_and_signalfd(int signum);
 static void signal_handler(int sig);
 static pid_t get_dead_child_pid(int sigfd);
@@ -50,6 +54,7 @@ static sig_atomic_t exit_on_signal = 0;
 
 int main(int argc, char **argv) {
     char *config_file = NULL;
+    char *socket_path = NULL;
     while(true) {
         int option_index = 0;
         int opt = getopt_long(argc, argv, "c:h", long_options, &option_index);
@@ -72,10 +77,17 @@ int main(int argc, char **argv) {
     cfg_t *config = read_config(config_file);
     free(config_file);
 
+    if(!socket_path)
+        socket_path = get_socket_path();
+
     if(optind < argc) {
-        char *s = concat_strings(argv + optind, argc - optind);
-        // TODO implement
-        free(s);
+        char *outmsg = intersperse(argv + optind, argc - optind);
+        char *inmsg = send_message(outmsg, socket_path);
+        puts(inmsg);
+
+        free(inmsg);
+        free(outmsg);
+        free(socket_path);
         cfg_free(config);
         return 0;
     }
@@ -94,6 +106,22 @@ int main(int argc, char **argv) {
         sigaction(SIGTERM, &act, NULL);
     }
 
+    // TODO unlink?
+    int connfd = socket(AF_UNIX, SOCK_SEQPACKET | SOCK_CLOEXEC, 0);
+    if(connfd == -1)
+        die("Error: socket() failed. Reason: %s\n", strerror(errno));
+    {
+        struct sockaddr_un name;
+        memset(&name, 0, sizeof(name));
+        name.sun_family = AF_UNIX;
+        strncpy(name.sun_path, socket_path, sizeof(name.sun_path) - 1);
+        if(bind(connfd, (const struct sockaddr*) &name,
+                   sizeof(struct sockaddr_un)) < 0)
+            die("Error: bind() failed. Reason: %s\n", strerror(errno));
+    }
+    if(listen(connfd, 20) < 0)
+        die("Error: listen() failed. Reason: %s\n", strerror(errno));
+
     timecalc_init();
 
     while(!exit_on_signal) {
@@ -103,9 +131,9 @@ int main(int argc, char **argv) {
         fd_set readfds;
         FD_ZERO(&readfds);
         FD_SET(sigfd, &readfds);
-        int maxfd = sigfd;
+        FD_SET(connfd, &readfds);
 
-        if(pselect(maxfd + 1, &readfds, NULL, NULL, &timeout, NULL) < 0) {
+        if(pselect(FD_SETSIZE, &readfds, NULL, NULL, &timeout, NULL) < 0) {
             if(errno == EINTR && exit_on_signal)
                 break;
             die("pselect() failed. Reason: %s\n", strerror(errno));
@@ -117,8 +145,30 @@ int main(int argc, char **argv) {
                 if(tasks[i].pid == pid)
                     tasks[i].pid = 0;
         }
+
+        if(FD_ISSET(connfd, &readfds)) {
+            int datafd = accept4(connfd, NULL, NULL, SOCK_CLOEXEC);
+            if(datafd == -1)
+                die("accept4() failed. Reason: %s\n", strerror(errno));
+            // TODO IO multiplexing
+            char inmsg[1024];
+            ssize_t sz = read(datafd, inmsg, sizeof(inmsg) - 1);
+            if(sz < 0)
+                die("read() failed. Reason: %s\n", strerror(errno));
+            inmsg[sz] = '\0';
+            if(strcmp(inmsg, "exit") == 0)
+                exit_on_signal = -1;
+            char *outmsg = handle_messages(inmsg, tasks, n_task);
+            if(send(datafd, outmsg, strlen(outmsg), MSG_EOR) < 0)
+                die("send() failed. Reason: %s\n", strerror(errno));
+            free(outmsg);
+            close(datafd);
+        }
     }
 
+    close(connfd);
+    unlink(socket_path);
+    free(socket_path);
     free(tasks);
     cfg_free(config);
 
@@ -129,8 +179,18 @@ int main(int argc, char **argv) {
     }
 }
 
+static char *get_socket_path() {
+    const char *dir = getenv("XDG_RUNTIME_DIR");
+    if(!dir)
+        dir = "/tmp";
+    char *s;
+    if(asprintf(&s, "%s/jautolock.socket", dir) < 0)
+        die("asprintf() failed.");
+    return s;
+}
+
 // concat list[0] to list[n - 1] together
-static char *concat_strings(char **list, int n) {
+static char *intersperse(char **list, int n) {
     if(n == 0)
         return strdup("");
 
@@ -143,6 +203,33 @@ static char *concat_strings(char **list, int n) {
         s = t;
     }
     return s;
+}
+
+static char *send_message(const char *outmsg, const char *socket_path) {
+    int datafd = socket(AF_UNIX, SOCK_SEQPACKET | SOCK_CLOEXEC, 0);
+    if(datafd == -1)
+        die("Error: socket() failed. Reason: %s\n", strerror(errno));
+
+    struct sockaddr_un name;
+    memset(&name, 0, sizeof(name));
+    name.sun_family = AF_UNIX;
+    strncpy(name.sun_path, socket_path, sizeof(name.sun_path) - 1);
+    if(connect(datafd, (const struct sockaddr*) &name,
+                sizeof(struct sockaddr_un)) < 0)
+        die("Error: connect() failed. Reason: %s\n", strerror(errno));
+
+    if(send(datafd, outmsg, strlen(outmsg), MSG_EOR) < 0)
+        die("send() failed. Reason: %s\n", strerror(errno));
+
+    char buf[1024];
+    ssize_t sz = read(datafd, buf, sizeof(buf) - 1);
+    if(sz < 0)
+        die("read() failed. Reason: %s\n", strerror(errno));
+    buf[sz] = '\0';
+    char *inmsg = strdup(buf);
+
+    close(datafd);
+    return inmsg;
 }
 
 /**

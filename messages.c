@@ -18,6 +18,7 @@
  */
 #include "messages.h"
 #include <stdbool.h>
+#include <stdlib.h>
 #include <string.h>
 #include "tasks.h"
 #include "timecalc.h"
@@ -35,7 +36,8 @@ struct {
     {"unbusy", handle_unbusy},
 };
 
-void handle_messages(char *message, struct Task *tasks, unsigned n) {
+char *handle_messages(const char *cmessage, struct Task *tasks, unsigned n) {
+    char *message = strdup(cmessage);
     char *arg = strchr(message, ' ');
     if(arg)
         *arg++ = '\0';
@@ -45,6 +47,8 @@ void handle_messages(char *message, struct Task *tasks, unsigned n) {
     for(unsigned i = 0; i < sizeof(actions) / sizeof(actions[0]); i++)
         if(strcmp(message, actions[i].command) == 0)
             (actions[i].handler)(arg, tasks, n);
+    free(message);
+    return strdup("message received.");
 }
 
 /**

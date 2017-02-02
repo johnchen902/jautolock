@@ -18,15 +18,14 @@
  */
 #ifndef JAUTOLOCK_MESSAGES_H
 #define JAUTOLOCK_MESSAGES_H
-/**
- * Forward declaration. See "tasks.h"
- */
 struct Task;
 /**
  * Handle messages send by the users.
- * Does not handle "exit" message because it don't know how.
+ * Does not actually exit upon receiving "exit" message.
+ * Caller should check for "exit" message.
  *
- * May modify message for its convenience but will not free it.
+ * Returns an appropriate free()-able message,
+ * intended to be sent back to user.
  */
-void handle_messages(char *message, struct Task *tasks, unsigned n);
+char *handle_messages(const char *message, struct Task *tasks, unsigned n);
 #endif // JAUTOLOCK_MESSAGES_H
