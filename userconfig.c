@@ -19,13 +19,9 @@
 #include "userconfig.h"
 #include <basedir_fs.h>
 #include <confuse.h>
-#include <errno.h>
-#include <glob.h>
-#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/stat.h>
 #include <time.h>
 #include "die.h"
 #include "tasks.h"

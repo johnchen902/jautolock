@@ -19,7 +19,6 @@
 #include "timecalc.h"
 #include <X11/Xlib.h>
 #include <X11/extensions/scrnsaver.h>
-#include <errno.h>
 #include <stdbool.h>
 #include <string.h>
 #include <sys/time.h>
