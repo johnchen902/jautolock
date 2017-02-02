@@ -44,7 +44,7 @@ struct {
 char *handle_messages(const char *cmessage, struct Task *tasks, unsigned n) {
     char *message = strdup(cmessage);
     if(!message)
-        die("strdup() failed. Reason: %s", strerror(errno));
+        die_perror("strdup");
 
     char *arg = strchr(message, ' ');
     if(arg)
@@ -54,7 +54,7 @@ char *handle_messages(const char *cmessage, struct Task *tasks, unsigned n) {
 
     char *response = strdup("Message received.");
     if(!response)
-        die("strdup() failed. Reason: %s", strerror(errno));
+        die_perror("strdup");
 
     bool understood = false;
     for(unsigned i = 0; i < sizeof(actions) / sizeof(actions[0]); i++)
@@ -83,7 +83,7 @@ char *handle_messages(const char *cmessage, struct Task *tasks, unsigned n) {
 static char *strjoin(char *first, const char *second) {
     first = realloc(first, strlen(first) + strlen(second) + 2);
     if(!first)
-        die("realloc() failed. Reason: %s", strerror(errno));
+        die_perror("realloc");
     strcat(first, "\n");
     strcat(first, second);
     return first;

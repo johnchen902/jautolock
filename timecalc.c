@@ -47,7 +47,7 @@ static bool busy;
 void timecalc_init(void) {
     last = (const struct timespec) {0, 0};
     if(clock_gettime(CLOCK_MONOTONIC, &offset) < 0)
-        die("clock_gettime() failed. Reason: %s\n", strerror(errno));
+        die_perror("clock_gettime");
     last_act = offset;
     busy = false;
 }
@@ -56,7 +56,7 @@ void timecalc_cycle(struct timespec *timeout,
         struct Task *tasks, unsigned n) {
     struct timespec cur;
     if(clock_gettime(CLOCK_MONOTONIC, &cur) < 0)
-        die("clock_gettime() failed. Reason: %s\n", strerror(errno));
+        die_perror("clock_gettime");
 
     struct timespec running = {0, 0};
     for(unsigned i = 0; i < n; i++)

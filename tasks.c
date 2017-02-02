@@ -37,7 +37,7 @@ void execute_task(struct Task *task) {
         _exit(EXIT_FAILURE);
     }
     if(pid < 0)
-        die("fork() failed. Reason: %s\n", strerror(errno));
+        die_perror("fork");
     task->pid = pid;
 }
 

@@ -66,7 +66,7 @@ int main(int argc, char **argv) {
                 die("multiple configuration file specified");
             config_file = strdup(optarg);
             if(!config_file)
-                die("strdup() failed. Reason: %s\n", strerror(errno));
+                die_perror("strdup");
             break;
         case 'h':
             printf("jautolock © 2017 Pochang Chen\n"
@@ -95,7 +95,7 @@ int main(int argc, char **argv) {
     struct Task *tasks;
     unsigned n_task = get_tasks(config, &tasks);
     if(n_task == 0)
-        die("Error: No task specifed in configuration.\n");
+        die("No task specifed in configuration.\n");
 
     int sigfd = mask_and_signalfd(SIGCHLD);
 
@@ -109,7 +109,7 @@ int main(int argc, char **argv) {
     // TODO unlink?
     int connfd = socket(AF_UNIX, SOCK_SEQPACKET | SOCK_CLOEXEC, 0);
     if(connfd == -1)
-        die("Error: socket() failed. Reason: %s\n", strerror(errno));
+        die_perror("socket");
     {
         struct sockaddr_un name;
         memset(&name, 0, sizeof(name));
@@ -117,10 +117,10 @@ int main(int argc, char **argv) {
         strncpy(name.sun_path, socket_path, sizeof(name.sun_path) - 1);
         if(bind(connfd, (const struct sockaddr*) &name,
                    sizeof(struct sockaddr_un)) < 0)
-            die("Error: bind() failed. Reason: %s\n", strerror(errno));
+            die_perror("bind");
     }
     if(listen(connfd, 20) < 0)
-        die("Error: listen() failed. Reason: %s\n", strerror(errno));
+        die_perror("listen");
 
     timecalc_init();
 
@@ -136,7 +136,7 @@ int main(int argc, char **argv) {
         if(pselect(FD_SETSIZE, &readfds, NULL, NULL, &timeout, NULL) < 0) {
             if(errno == EINTR && exit_on_signal)
                 break;
-            die("pselect() failed. Reason: %s\n", strerror(errno));
+            die_perror("pselect");
         }
 
         if(FD_ISSET(sigfd, &readfds)) {
@@ -149,18 +149,18 @@ int main(int argc, char **argv) {
         if(FD_ISSET(connfd, &readfds)) {
             int datafd = accept4(connfd, NULL, NULL, SOCK_CLOEXEC);
             if(datafd == -1)
-                die("accept4() failed. Reason: %s\n", strerror(errno));
+                die_perror("accept4");
             // TODO IO multiplexing
             char inmsg[1024];
             ssize_t sz = read(datafd, inmsg, sizeof(inmsg) - 1);
             if(sz < 0)
-                die("read() failed. Reason: %s\n", strerror(errno));
+                die_perror("read");
             inmsg[sz] = '\0';
             if(strcmp(inmsg, "exit") == 0)
                 exit_on_signal = -1;
             char *outmsg = handle_messages(inmsg, tasks, n_task);
             if(send(datafd, outmsg, strlen(outmsg), MSG_EOR) < 0)
-                die("send() failed. Reason: %s\n", strerror(errno));
+                die_perror("send");
             free(outmsg);
             close(datafd);
         }
@@ -185,7 +185,7 @@ static char *get_socket_path() {
         dir = "/tmp";
     char *s;
     if(asprintf(&s, "%s/jautolock.socket", dir) < 0)
-        die("asprintf() failed.");
+        die_perror("asprintf");
     return s;
 }
 
@@ -198,7 +198,7 @@ static char *intersperse(char **list, int n) {
     for(int i = 1; i < n; i++) {
         char *t;
         if(asprintf(&t, "%s %s", s, list[i]) < 0)
-            die("asprintf() failed.");
+            die_perror("asprintf");
         free(s);
         s = t;
     }
@@ -208,7 +208,7 @@ static char *intersperse(char **list, int n) {
 static char *send_message(const char *outmsg, const char *socket_path) {
     int datafd = socket(AF_UNIX, SOCK_SEQPACKET | SOCK_CLOEXEC, 0);
     if(datafd == -1)
-        die("Error: socket() failed. Reason: %s\n", strerror(errno));
+        die_perror("socket");
 
     struct sockaddr_un name;
     memset(&name, 0, sizeof(name));
@@ -216,15 +216,15 @@ static char *send_message(const char *outmsg, const char *socket_path) {
     strncpy(name.sun_path, socket_path, sizeof(name.sun_path) - 1);
     if(connect(datafd, (const struct sockaddr*) &name,
                 sizeof(struct sockaddr_un)) < 0)
-        die("Error: connect() failed. Reason: %s\n", strerror(errno));
+        die_perror("connect");
 
     if(send(datafd, outmsg, strlen(outmsg), MSG_EOR) < 0)
-        die("send() failed. Reason: %s\n", strerror(errno));
+        die_perror("send");
 
     char buf[1024];
     ssize_t sz = read(datafd, buf, sizeof(buf) - 1);
     if(sz < 0)
-        die("read() failed. Reason: %s\n", strerror(errno));
+        die_perror("read");
     buf[sz] = '\0';
     char *inmsg = strdup(buf);
 
@@ -241,14 +241,14 @@ static char *send_message(const char *outmsg, const char *socket_path) {
 static int mask_and_signalfd(int signum) {
     sigset_t mask;
     if(sigemptyset(&mask) < 0)
-        die("sigemptyset() failed. Reason: %s\n", strerror(errno));
+        die_perror("sigemptyset");
     if(sigaddset(&mask, signum) < 0)
-        die("sigaddset() failed. Reason: %s\n", strerror(errno));
+        die_perror("sigaddset");
     if(sigprocmask(SIG_BLOCK, &mask, NULL) < 0)
-        die("sigprocmask() failed. Reason: %s\n", strerror(errno));
+        die_perror("sigprocmask");
     int fd = signalfd(-1, &mask, SFD_CLOEXEC);
     if(fd < 0)
-        die("signalfd() failed. Reason: %s\n", strerror(errno));
+        die_perror("signalfd");
     return fd;
 }
 
@@ -269,11 +269,11 @@ static void signal_handler(int sig) {
 static pid_t get_dead_child_pid(int sigfd) {
     struct signalfd_siginfo siginfo;
     if(read(sigfd, &siginfo, sizeof(siginfo)) < 0)
-        die("read() failed. Reason: %s\n", strerror(errno));
+        die_perror("read");
     if(siginfo.ssi_signo != SIGCHLD)
         die("SIGCHLD expected, not %s\n", strsignal(siginfo.ssi_signo));
     pid_t pid = wait(NULL);
     if(pid < 0)
-        die("wait() failed. Reason: %s\n", strerror(errno));
+        die_perror("wait");
     return pid;
 }

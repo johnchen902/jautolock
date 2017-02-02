@@ -1,5 +1,5 @@
 /*
- * die.h - print error message and exit
+ * die.c - print error message and exit
  *
  * Copyright (C) 2017 Pochang Chen
  *
@@ -16,16 +16,20 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef JAUTOLOCK_DIE_H
-#define JAUTOLOCK_DIE_H
-/**
- * Print error message to stderr and exit(EXIT_FAILURE).
- * (fprintf version)
- */
-_Noreturn void die(const char *fmt, ...);
-/**
- * Print error message to stderr and exit(EXIT_FAILURE).
- * (perror version)
- */
-_Noreturn void die_perror(const char *s);
-#endif // JAUTOLOCK_DIE_H
+#include "die.h"
+#include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
+_Noreturn void die(const char *fmt, ...) {
+    va_list ap;
+    va_start(ap, fmt);
+    vfprintf(stderr, fmt, ap);
+    va_end(ap);
+
+    exit(EXIT_FAILURE);
+}
+_Noreturn void die_perror(const char *s) {
+    perror(s);
+
+    exit(EXIT_FAILURE);
+}
