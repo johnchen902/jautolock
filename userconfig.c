@@ -31,11 +31,12 @@
 #include "tasks.h"
 
 static char *get_config_path(const char *const_config_path);
+static int parse_time(const char *s, struct timespec *t);
 static int config_validate_time(cfg_t *cfg, cfg_opt_t *opt);
 static int config_validate_task(cfg_t *cfg, cfg_opt_t *opt);
 
 static cfg_opt_t task_opts[] = {
-    CFG_INT("time", 600, CFGF_NONE),
+    CFG_STR("time", "600s", CFGF_NONE),
     CFG_STR("command", NULL, CFGF_NODEFAULT),
     CFG_END()
 };
@@ -78,7 +79,7 @@ unsigned get_tasks(cfg_t *config, struct Task **tasks_ptr) {
     for(unsigned i = 0; i < n; i++) {
         cfg_t *task = cfg_getnsec(config, "task", i);
         (*tasks_ptr)[i].name = cfg_title(task);
-        (*tasks_ptr)[i].time.tv_sec = cfg_getint(task, "time");
+        parse_time(cfg_getstr(task, "time"), &(*tasks_ptr)[i].time);
         (*tasks_ptr)[i].command = cfg_getstr(task, "command");
     }
     return n;
@@ -92,11 +93,74 @@ static char *get_config_path(const char *const_config_path) {
     return xdgConfigFind("jautolock/config", NULL);
 }
 
+// parse time duration of format \(\d+\(d\|h\|m\|s\|ms\|ns\)\)+
+static int parse_time(const char *s, struct timespec *t) {
+    if(!*s)
+        return -1;
+    t->tv_sec = t->tv_nsec = 0;
+    while(*s) {
+        char *ep;
+        long x = strtol(s, &ep, 10);
+        if(ep == s)
+            return -1;
+        s = ep;
+        if(!*s)
+            return -1;
+        switch(*s) {
+        case 'd':
+            t->tv_sec += x * 86400;
+            s++;
+            break;
+        case 'h':
+            t->tv_sec += x * 3600;
+            s++;
+            break;
+        case 'm':
+            if(s[1] == 's') {
+                t->tv_nsec += x * ((int) 1e6);
+                s += 2;
+                break;
+            }
+            t->tv_sec += x * 60;
+            s++;
+            break;
+        case 's':
+            t->tv_sec += x;
+            s++;
+            break;
+        case 'n':
+            if(s[1] != 's')
+                return -1;
+            t->tv_nsec += x;
+            s += 2;
+            break;
+        default:
+            return -1;
+        }
+    }
+    t->tv_sec += t->tv_nsec / ((int) 1e9);
+    t->tv_nsec %= ((int) 1e9);
+    if(t->tv_nsec < 0) {
+        t->tv_sec--;
+        t->tv_nsec += ((int) 1e9);
+    }
+    return 0;
+}
+
 // validate the time option (must be positive)
 static int config_validate_time(cfg_t *cfg, cfg_opt_t *opt) {
-    int value = cfg_opt_getnint(opt, 0);
-    if(value < 0) {
-        cfg_error(cfg, "negative time %d", value);
+    const char *s = cfg_opt_getnstr(opt, 0);
+    struct timespec t;
+    if(parse_time(s, &t) < 0) {
+        cfg_error(cfg, "bad time format");
+        return -1;
+    }
+    if(t.tv_sec < 0) {
+        cfg_error(cfg, "negative time");
+        return -1;
+    }
+    if(t.tv_sec == 0 && t.tv_nsec == 0) {
+        cfg_error(cfg, "zero time");
         return -1;
     }
     return 0;
