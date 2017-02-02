@@ -17,57 +17,119 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "messages.h"
+#include <errno.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
+#include "die.h"
 #include "tasks.h"
 #include "timecalc.h"
 
-static void handle_now(char *arg, struct Task *tasks, unsigned n);
-static void handle_busy(char *arg, struct Task *tasks, unsigned n);
-static void handle_unbusy(char *arg, struct Task *tasks, unsigned n);
+static char *strjoin(char *first, const char *second);
+static char *handle_now(char *arg, struct Task *tasks, unsigned n);
+static char *handle_busy(char *arg, struct Task *tasks, unsigned n);
+static char *handle_unbusy(char *arg, struct Task *tasks, unsigned n);
+static char *handle_exit(char *arg, struct Task *tasks, unsigned n);
 
 struct {
     const char *const command;
-    void (*const handler) (char *arg, struct Task *tasks, unsigned n);
+    char *(*const handler) (char *arg, struct Task *tasks, unsigned n);
 } actions[] = {
     {"now", handle_now},
     {"busy", handle_busy},
     {"unbusy", handle_unbusy},
+    {"exit", handle_exit},
 };
 
 char *handle_messages(const char *cmessage, struct Task *tasks, unsigned n) {
     char *message = strdup(cmessage);
+    if(!message)
+        die("strdup() failed. Reason: %s", strerror(errno));
+
     char *arg = strchr(message, ' ');
     if(arg)
         *arg++ = '\0';
     else
         arg = strchr(message, '\0');
 
+    char *response = strdup("Message received.");
+    if(!response)
+        die("strdup() failed. Reason: %s", strerror(errno));
+
+    bool understood = false;
     for(unsigned i = 0; i < sizeof(actions) / sizeof(actions[0]); i++)
-        if(strcmp(message, actions[i].command) == 0)
-            (actions[i].handler)(arg, tasks, n);
+        if(strcmp(message, actions[i].command) == 0) {
+            understood = true;
+            char *s = (actions[i].handler)(arg, tasks, n);
+            if(s) {
+                response = strjoin(response, s);
+                free(s);
+            }
+        }
+
+    if(!understood)
+        response = strjoin(response, "However I don't understand it.");
+
     free(message);
-    return strdup("message received.");
+    return response;
+}
+
+/**
+ * strjoin s t = s ++ "\n" ++ t
+ *
+ * First string will be freed.
+ * Returns a freeable string.
+ */
+static char *strjoin(char *first, const char *second) {
+    first = realloc(first, strlen(first) + strlen(second) + 2);
+    if(!first)
+        die("realloc() failed. Reason: %s", strerror(errno));
+    strcat(first, "\n");
+    strcat(first, second);
+    return first;
 }
 
 /**
  * Execute the task specified in arg immediately.
  */
-static void handle_now(char *arg, struct Task *tasks, unsigned n) {
+static char *handle_now(char *arg, struct Task *tasks, unsigned n) {
+    if(!*arg)
+        return strdup("\"now\" expect one argument.");
+    bool matched = false;
+    bool fired = false;
     for(unsigned i = 0; i < n; i++)
-        if(strcmp(tasks[i].name, arg) == 0 && tasks[i].pid == 0)
-            execute_task(tasks + i);
+        if(strcmp(tasks[i].name, arg) == 0) {
+            matched = true;
+            if(tasks[i].pid == 0) {
+                fired = true;
+                execute_task(tasks + i);
+            }
+        }
+    if(!matched)
+        return strdup("No task has such name.");
+    if(!fired)
+        return strdup("The task is already running.");
+    return strdup("Task fired.");
 }
 
 /**
  * See timecalc_set_busy.
  */
-static void handle_busy(char *arg, struct Task *tasks, unsigned n) {
+static char *handle_busy(char *arg, struct Task *tasks, unsigned n) {
     (void) arg, (void) tasks, (void) n;
     timecalc_set_busy(true);
+    return strdup("You're assumed to be busy.");
 }
-static void handle_unbusy(char *arg, struct Task *tasks, unsigned n) {
+static char *handle_unbusy(char *arg, struct Task *tasks, unsigned n) {
     (void) arg, (void) tasks, (void) n;
     timecalc_set_busy(false);
+    return strdup("You're no longer assumed to be busy.");
+}
+
+// Just say "OK, I'll exit"
+static char *handle_exit(char *arg, struct Task *tasks, unsigned n) {
+    (void) arg, (void) tasks, (void) n;
+    if(*arg)
+        return strdup("\"exit\" expect no argument.");
+    return strdup("Will exit.");
 }
