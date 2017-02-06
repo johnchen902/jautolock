@@ -37,6 +37,8 @@
 #include "timecalc.h"
 #include "userconfig.h"
 
+#define OPT_UNLINK_SOCKET 10000
+
 static char *get_socket_path(void);
 static char *intersperse(char **list, int n);
 static char *send_message(const char *msg, const char *socket_path);
@@ -47,6 +49,7 @@ static pid_t get_dead_child_pid(int sigfd);
 static struct option long_options[] = {
     {"config", required_argument, 0, 'c'},
     {"help", no_argument, 0, 'h'},
+    {"unlinksocket", required_argument, 0, OPT_UNLINK_SOCKET},
     {0, 0, 0, 0}
 };
 
@@ -55,6 +58,7 @@ static sig_atomic_t exit_on_signal = 0;
 int main(int argc, char **argv) {
     char *config_file = NULL;
     char *socket_path = NULL;
+    const char *unlink_socket = NULL;
     while(true) {
         int option_index = 0;
         int opt = getopt_long(argc, argv, "c:h", long_options, &option_index);
@@ -72,6 +76,9 @@ int main(int argc, char **argv) {
             printf("jautolock © 2017 Pochang Chen\n"
                    "Usage: %s [-c <configfile>] [-h] [<message>]\n", argv[0]);
             return 0;
+        case OPT_UNLINK_SOCKET:
+            unlink_socket = optarg;
+            break;
         }
     }
     cfg_t *config = read_config(config_file);
@@ -79,6 +86,8 @@ int main(int argc, char **argv) {
 
     if(!socket_path)
         socket_path = get_socket_path();
+    if(!unlink_socket)
+        unlink_socket = "never";
 
     if(optind < argc) {
         char *outmsg = intersperse(argv + optind, argc - optind);
@@ -106,10 +115,11 @@ int main(int argc, char **argv) {
         sigaction(SIGTERM, &act, NULL);
     }
 
-    // TODO unlink?
     int connfd = socket(AF_UNIX, SOCK_SEQPACKET | SOCK_CLOEXEC, 0);
     if(connfd == -1)
         die_perror("socket");
+    if(strcmp(unlink_socket, "always") == 0)
+        unlink(socket_path);
     {
         struct sockaddr_un name;
         memset(&name, 0, sizeof(name));
